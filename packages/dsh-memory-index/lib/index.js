@@ -219,14 +219,16 @@ export class MemorySearchEngine extends Service {
 	* Index a session's log incrementally: embed only documents with seq greater
 	* than the last indexed seq. Append-only assumption; a shrunk log triggers a
 	* full reindex of the session's rows.
-	* @param session - live session `{ header, events }` (or `{ header, events }` from persistence).
+	* @param session - live `Session` (or `{ header, events }` snapshots from persistence).
 	* @returns the number of newly indexed documents.
 	*/
 	async indexSession(session) {
 		await this._ensureReady();
 		const db = this._db;
+		// A live `Session` exposes `snapshotEvents()`, not an `events` array.
+		const events = session.events ?? session.snapshotEvents();
 		const { id } = session.header;
-		const docs = buildSessionEventSearchDocuments(id, session.events);
+		const docs = buildSessionEventSearchDocuments(id, events);
 		const row = db.prepare("SELECT last_seq, header_fingerprint FROM session_index WHERE session_id = ?").get(id);
 		const headerFingerprint = fingerprintOf(session.header);
 		if (row !== void 0 && row.header_fingerprint !== headerFingerprint) {
@@ -246,7 +248,7 @@ export class MemorySearchEngine extends Service {
 		const insertVec = db.prepare("INSERT INTO chunk_vec (rowid, embedding) VALUES (CAST(? AS INTEGER), ?)");
 		// File-tag extraction: each tool/result carries the path of the nearest
 		// preceding tool/call (the entity index — "everything about src/a.ts").
-		const filesBySeq = fileTagsBySeq(session.events);
+		const filesBySeq = fileTagsBySeq(events);
 		const texts = fresh.map((doc) => `${this._contextPrefix(doc)}${doc.text}`);
 		const vectors = await this._embedTexts(texts);
 		db.exec("BEGIN IMMEDIATE");
@@ -278,9 +280,10 @@ export class MemorySearchEngine extends Service {
 		}
 		try {
 			const loaded = await this.ctx.sessionQuery.readSession(sessionId);
-			await this.indexSession({ header: loaded.header, events: loaded.events });
-		} catch {
-			/* best-effort: search proceeds with whatever is indexed */
+			// SessionLogSnapshot carries the cloned header as `session`, not `header`.
+			await this.indexSession({ header: loaded.session, events: loaded.events });
+		} catch (error) {
+			this.ctx.logger?.warn(`memory-index: could not index session ${sessionId}: ${error instanceof Error ? error.message : String(error)}`);
 		}
 	}
 	/** kNN over all indexed chunks (session scoping happens in JS via `chunks`). */
@@ -310,6 +313,7 @@ export class MemorySearchEngine extends Service {
 			signal?.throwIfAborted();
 		} catch (error) {
 			if (isAbort(error)) throw error;
+			this.ctx.logger?.warn(`memory-index: search failed for session ${sessionId}: ${error instanceof Error ? `${error.message}\n${error.stack}` : String(error)}`);
 			return [];
 		}
 		// Lexical arm — best-effort; the CJK-aware provider searches all

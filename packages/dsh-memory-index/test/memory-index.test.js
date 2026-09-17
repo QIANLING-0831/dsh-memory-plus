@@ -1,5 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import CjkSessionQueryEngine from "dsh-session-query-sqlite-cjk";
 import MemorySearchEngine from "../lib/index.js";
 
@@ -145,3 +148,18 @@ test("file-tag filter restricts hits to the touched file", async () => {
 	const miss = await memory.search({ sessionId: "file-session", query: "export const", limit: 5, file: "src/nope.ts" });
 	assert.equal(miss.length, 0);
 });
+
+test("db path defaults to $DSH_HOME when config omits it", () => {
+	const dir = mkdtempSync(join(tmpdir(), "dsh-memory-index-"));
+	const previous = process.env.DSH_HOME;
+	process.env.DSH_HOME = dir;
+	try {
+		const memory = new MemorySearchEngine(stubCtx(), {});
+		assert.equal(memory.config.path, join(dir, "memory-index.db"));
+	} finally {
+		if (previous === void 0) delete process.env.DSH_HOME;
+		else process.env.DSH_HOME = previous;
+		rmSync(dir, { recursive: true, force: true });
+	}
+});
+

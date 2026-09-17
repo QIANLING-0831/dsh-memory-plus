@@ -1,5 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { MemoryCoreEngine, apply, createRememberTool, normalizeContent, overlapSimilarity } from "../lib/index.js";
 
 function stubCtx() {
@@ -132,4 +135,19 @@ test("memory_remember handles missing agent and service gracefully", async () =>
 	const tool = createRememberTool(toolCtx, {});
 	const out = await tool.execute({ content: "x" }, { agent: void 0 });
 	assert.ok(out.includes("not loaded") || out.includes("已记住"));
+});
+
+test("db path defaults to $DSH_HOME when config omits it", () => {
+	const dir = mkdtempSync(join(tmpdir(), "dsh-memory-core-"));
+	const previous = process.env.DSH_HOME;
+	process.env.DSH_HOME = dir;
+	try {
+		const engine = new MemoryCoreEngine(stubCtx(), {});
+		assert.equal(engine.config.path, join(dir, "memory-core.db"));
+		assert.ok(existsSync(join(dir, "memory-core.db")), "the default path is opened, not just computed");
+	} finally {
+		if (previous === void 0) delete process.env.DSH_HOME;
+		else process.env.DSH_HOME = previous;
+		rmSync(dir, { recursive: true, force: true });
+	}
 });

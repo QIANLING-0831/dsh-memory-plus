@@ -2,7 +2,8 @@ import { Service } from "@deepseek-ai/cordis";
 import z from "@deepseek-ai/schemastery";
 import { load as loadVec } from "sqlite-vec";
 import { mkdir } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { homedir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { buildSessionEventSearchDocuments } from "@deepseek-ai/dsh-session-query";
 import { createTestEmbedder, createTransformersEmbedder, fingerprintOf } from "./embed.js";
@@ -42,8 +43,9 @@ const MEMORY_SCHEMA_VERSION = 2;
 * @returns resolved config.
 */
 function resolveConfig(config) {
+	const dshHome = process.env.DSH_HOME ?? join(homedir(), ".dsh");
 	const resolved = {
-		path: config.path,
+		path: config.path ?? join(dshHome, "memory-index.db"),
 		dims: config.dims ?? 512,
 		topK: config.topK ?? 5,
 		lexicalTopK: config.lexicalTopK ?? 10,
@@ -137,7 +139,7 @@ export class MemorySearchEngine extends Service {
 	static inject = ["sessions", "sessionQuery"];
 	/** schemastery config schema. */
 	static Config = z.object({
-		path: z.string().required(),
+		path: z.string(),
 		dims: z.number().step(1).min(1).default(512),
 		topK: z.number().step(1).min(1).default(5),
 		lexicalTopK: z.number().step(1).min(1).default(10),
@@ -167,6 +169,10 @@ export class MemorySearchEngine extends Service {
 		const actual = this.config.path === ":memory:" ? this.config.path : resolve(this.config.path);
 		if (actual !== ":memory:") await mkdir(dirname(actual), { recursive: true, mode: 448 });
 		const db = new DatabaseSync(actual, { allowExtension: true });
+		if (actual !== ":memory:") {
+			db.exec("PRAGMA busy_timeout = 5000");
+			db.exec("PRAGMA journal_mode = WAL");
+		}
 		try {
 			const { application_id: applicationId } = db.prepare("PRAGMA application_id").get();
 			const { user_version: version } = db.prepare("PRAGMA user_version").get();

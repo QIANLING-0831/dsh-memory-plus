@@ -3,7 +3,8 @@ import { Service } from "@deepseek-ai/cordis";
 import z from "@deepseek-ai/schemastery";
 import SessionQueryEngine, { SESSION_QUERY_DEFAULT_PERSISTED_INSPECT_CONCURRENCY, SESSION_QUERY_READ_WINDOW_MAX, SessionQueryError, SessionSearchCursor, assertSessionHeadersCompatible, buildSessionEventSearchDocuments, materializeSessionEventResultFilters, materializeSessionResultFilters } from "@deepseek-ai/dsh-session-query";
 import { mkdir, open } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { homedir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 //#region lib/types/schema.js
 /**
 * Fork of @deepseek-ai/dsh-session-query-sqlite (MIT) with CJK-aware FTS5 tables.
@@ -74,6 +75,7 @@ async function openSearchDatabase(path, journalMode) {
 			assertDerivedUserTables(actual, userTables);
 			if (version !== CJK_QUERY_SQLITE_SCHEMA_VERSION) resetDerivedSchema(db, userTables);
 		}
+		if (actual !== ":memory:") db.exec("PRAGMA busy_timeout = 5000");
 		db.exec(`PRAGMA journal_mode = ${journalMode.toUpperCase()}`);
 		ensurePersistentSchema(db);
 		ensureTemporarySchema(db);
@@ -515,7 +517,7 @@ const STABLE_OBSERVATION_ATTEMPTS = 2;
 var CjkSessionQueryEngine = class extends SessionQueryEngine {
 	static inject = ["sessions"];
 	static Config = z.object({
-		path: z.string().required(),
+		path: z.string(),
 		openAt: z.union([
 			"startup",
 			"first-search",
@@ -1229,8 +1231,9 @@ function invalidCursor(cause) {
 	return new SessionQueryError("session-search cursor is invalid", "SESSION_QUERY_INVALID_CURSOR", { cause });
 }
 function resolveConfig(config) {
+	const dshHome = process.env.DSH_HOME ?? join(homedir(), ".dsh");
 	const resolved = {
-		path: config.path,
+		path: config.path ?? join(dshHome, "session-query-cjk.db"),
 		openAt: config.openAt ?? "startup",
 		journalMode: config.journalMode ?? "wal",
 		defaultLimit: config.defaultLimit ?? 20,

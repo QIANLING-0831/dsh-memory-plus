@@ -1,5 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import CjkSessionQueryEngine from "../lib/index.js";
 
 const SESSION_ID = "test-session";
@@ -213,6 +216,20 @@ test("persisted-only session matches via the trigram table", async () => {
 		assert.equal(page.items.length, 1, "expected exactly the persisted mixed-script document");
 		assert.ok(page.items[0].snippet.includes("Token消耗"));
 	});
+});
+
+test("db path defaults to $DSH_HOME when config omits it", () => {
+	const dir = mkdtempSync(join(tmpdir(), "dsh-memory-cjk-"));
+	const previous = process.env.DSH_HOME;
+	process.env.DSH_HOME = dir;
+	try {
+		const engine = new CjkSessionQueryEngine(stubCtx(), { openAt: "never" });
+		assert.equal(engine.config.path, join(dir, "session-query-cjk.db"));
+	} finally {
+		if (previous === void 0) delete process.env.DSH_HOME;
+		else process.env.DSH_HOME = previous;
+		rmSync(dir, { recursive: true, force: true });
+	}
 });
 
 test("serves the harness history contract: observeSession returns a disposable live observation", async () => {

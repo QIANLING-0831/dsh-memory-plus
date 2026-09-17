@@ -3,7 +3,8 @@ import { Service } from "@deepseek-ai/cordis";
 import z from "@deepseek-ai/schemastery";
 import { defineTool } from "@deepseek-ai/dsh-tools";
 import { mkdirSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { homedir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 //#region lib/types/index.js
 /**
@@ -28,8 +29,9 @@ const CORE_SCHEMA_VERSION = 1;
 const DEFAULT_TOPICS = ["preference", "convention", "environment", "decision", "general"];
 /** Resolve and validate config with defaults. */
 function resolveConfig(config) {
+	const dshHome = process.env.DSH_HOME ?? join(homedir(), ".dsh");
 	const resolved = {
-		path: config.path,
+		path: config.path ?? join(dshHome, "memory-core.db"),
 		enabled: config.enabled ?? true,
 		similarityThreshold: config.similarityThreshold ?? 0.9,
 		maxFacts: config.maxFacts ?? 50,
@@ -90,7 +92,7 @@ export class MemoryCoreEngine extends Service {
 	static inject = ["systemPrompt"];
 	/** schemastery config schema. */
 	static Config = z.object({
-		path: z.string().required(),
+		path: z.string(),
 		enabled: z.boolean().default(true),
 		similarityThreshold: z.number().default(0.9),
 		maxFacts: z.number().step(1).min(1).default(50),
@@ -122,6 +124,10 @@ export class MemoryCoreEngine extends Service {
 		const actual = path === ":memory:" ? path : resolve(path);
 		if (actual !== ":memory:") mkdirSync(dirname(actual), { recursive: true, mode: 448 });
 		const db = new DatabaseSync(actual);
+		if (actual !== ":memory:") {
+			db.exec("PRAGMA busy_timeout = 5000");
+			db.exec("PRAGMA journal_mode = WAL");
+		}
 		try {
 			const { application_id: applicationId } = db.prepare("PRAGMA application_id").get();
 			const { user_version: version } = db.prepare("PRAGMA user_version").get();

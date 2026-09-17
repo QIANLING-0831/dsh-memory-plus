@@ -3,3 +3,4 @@ node_modules/
 *.log
 .DS_Store
 .dsh-verify/
+docs/VERIFICATION.md

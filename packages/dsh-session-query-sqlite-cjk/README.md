@@ -22,7 +22,7 @@ CJK 可用的 `ctx.sessionQuery` 后端：继承 `@deepseek-ai/dsh-session-query
 
 ## 与上游的关系（fork 声明）
 
-本包是 [`@deepseek-ai/dsh-session-query-sqlite`](https://github.com/deepseek-ai/deepseek-harness)（MIT，v0.1.0-rc.7）的 fork-copy，完整保留了上游的调和状态机、generation、TEMP shadow、游标、分页等全部契约。改动仅：
+本包是 [`@deepseek-ai/dsh-session-query-sqlite`](https://github.com/deepseek-ai/deepseek-harness)（MIT，代码基线 v0.1.0-rc.7）的 fork-copy，完整保留了上游的调和状态机、generation、TEMP shadow、游标、分页等全部契约。改动仅：
 
 1. 派生库标识：`application_id = 1146308690`（与上游 1146308689 区分，防止混用），`user_version = 1`；打开已有库时对**本 fork 与上游**两种标识都执行派生表白名单校验 + 版本不一致就地 reset 重建（老库自动迁移）；
 2. 新增两张 trigram FTS5 表：`persisted_docs_cjk` / `temp.live_docs_cjk`（双写索引，删除同步），表名已加入 `DERIVED_USER_TABLES` 白名单；
@@ -42,7 +42,7 @@ CJK 可用的 `ctx.sessionQuery` 后端：继承 `@deepseek-ai/dsh-session-query
 | `journalMode` | `wal` | `wal` / `delete` / `truncate` / `persist` |
 | `defaultLimit` / `maxLimit` | `20` / `100` | 分页 |
 | `snippetChars` | `240` | snippet 上限（Unicode 码点） |
-| `readWindowMax` / `persistedInspectConcurrency` | `50` / `4` | 继承自服务定义 |
+| `readWindowMax` / `persistedReadConcurrency` | `50` / `4` | 继承自服务定义 |
 
 ## 已知限制
 

@@ -1,5 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import CjkSessionQueryEngine from "dsh-session-query-sqlite-cjk";
 import MemorySearchEngine from "../lib/index.js";
 
@@ -144,4 +147,63 @@ test("file-tag filter restricts hits to the touched file", async () => {
 	assert.ok(filtered.every((hit) => (hit.files ?? []).some((file) => file.includes("src/a.ts"))), `hit files: ${JSON.stringify(filtered.map((h) => h.files))}`);
 	const miss = await memory.search({ sessionId: "file-session", query: "export const", limit: 5, file: "src/nope.ts" });
 	assert.equal(miss.length, 0);
+});
+
+test("db path defaults to $DSH_HOME when config omits it", () => {
+	const dir = mkdtempSync(join(tmpdir(), "dsh-memory-index-"));
+	const previous = process.env.DSH_HOME;
+	process.env.DSH_HOME = dir;
+	try {
+		const memory = new MemorySearchEngine(stubCtx(), {});
+		assert.equal(memory.config.path, join(dir, "memory-index.db"));
+	} finally {
+		if (previous === void 0) delete process.env.DSH_HOME;
+		else process.env.DSH_HOME = previous;
+		rmSync(dir, { recursive: true, force: true });
+	}
+});
+
+test("a persisted-only session is indexed on demand from the sessionQuery snapshot", async () => {
+	// The harness SessionLogSnapshot carries the header as `session`; reading
+	// `header` silently left persisted-only sessions unindexed (the failure is
+	// swallowed by the best-effort catch in _ensureSessionIndexed).
+	const ctx = {
+		reflect: { provide() {} },
+		sessions: { list: () => [], get: () => void 0 },
+		sessionQuery: {
+			readSession: async () => ({ session: header, inheritedEventCount: 0, events }),
+			searchEvents: async () => ({ items: [] })
+		},
+		inject: () => ({ dispose() {} }),
+		effect: () => () => {},
+		logger: console
+	};
+	const memory = new MemorySearchEngine(ctx, { path: ":memory:", embedder: { kind: "char-overlap" }, maxChars: 120 });
+	const hits = await memory.search({ sessionId: SESSION_ID, query: "修复分词", limit: 3 });
+	assert.ok(hits.length > 0, "the persisted-only session must be indexed before the vector arm runs");
+});
+
+test("a live Session exposing snapshotEvents() is indexed", async () => {
+	// The real harness `Session` has no `events` array; it exposes
+	// `snapshotEvents()`. Passing the live session straight to `indexSession`
+	// therefore threw "invalid session surface: ..." inside a swallowed catch,
+	// so live sessions were never indexed.
+	const live = {
+		header,
+		snapshotEvents: (fromSeq = 0, toSeqExclusive = events.length) => events.slice(fromSeq, toSeqExclusive)
+	};
+	const liveCtx = {
+		reflect: { provide() {} },
+		sessions: { list: () => [], get: (id) => (id === SESSION_ID ? live : void 0) },
+		inject: () => ({ dispose() {} }),
+		effect: () => () => {},
+		logger: console
+	};
+	const cjk = new CjkSessionQueryEngine(liveCtx, { path: ":memory:", openAt: "startup" });
+	liveCtx.sessionQuery = cjk;
+	const memory = new MemorySearchEngine(liveCtx, { path: ":memory:", embedder: { kind: "char-overlap" }, maxChars: 120 });
+	const indexed = await memory.indexSession(live);
+	assert.equal(indexed, 4, "a live Session must yield its snapshotEvents() documents");
+	const hits = await memory.search({ sessionId: SESSION_ID, query: "修复分词", limit: 3 });
+	assert.ok(hits.length > 0, "a live Session must be indexed before the vector arm runs");
 });

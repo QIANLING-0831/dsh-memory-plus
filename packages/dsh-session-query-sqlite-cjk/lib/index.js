@@ -3,7 +3,8 @@ import { Service } from "@deepseek-ai/cordis";
 import z from "@deepseek-ai/schemastery";
 import SessionQueryEngine, { SESSION_QUERY_DEFAULT_PERSISTED_INSPECT_CONCURRENCY, SESSION_QUERY_READ_WINDOW_MAX, SessionQueryError, SessionSearchCursor, assertSessionHeadersCompatible, buildSessionEventSearchDocuments, materializeSessionEventResultFilters, materializeSessionResultFilters } from "@deepseek-ai/dsh-session-query";
 import { mkdir, open } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { homedir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 //#region lib/types/schema.js
 /**
 * Fork of @deepseek-ai/dsh-session-query-sqlite (MIT) with CJK-aware FTS5 tables.
@@ -74,6 +75,7 @@ async function openSearchDatabase(path, journalMode) {
 			assertDerivedUserTables(actual, userTables);
 			if (version !== CJK_QUERY_SQLITE_SCHEMA_VERSION) resetDerivedSchema(db, userTables);
 		}
+		if (actual !== ":memory:") db.exec("PRAGMA busy_timeout = 5000");
 		db.exec(`PRAGMA journal_mode = ${journalMode.toUpperCase()}`);
 		ensurePersistentSchema(db);
 		ensureTemporarySchema(db);
@@ -515,7 +517,7 @@ const STABLE_OBSERVATION_ATTEMPTS = 2;
 var CjkSessionQueryEngine = class extends SessionQueryEngine {
 	static inject = ["sessions"];
 	static Config = z.object({
-		path: z.string().required(),
+		path: z.string(),
 		openAt: z.union([
 			"startup",
 			"first-search",
@@ -531,7 +533,7 @@ var CjkSessionQueryEngine = class extends SessionQueryEngine {
 		maxLimit: z.number().step(1).min(1).max(SQLITE_MAX_PAGE_LIMIT).default(100),
 		snippetChars: z.number().step(1).min(1).default(240),
 		readWindowMax: z.number().step(1).min(0).default(SESSION_QUERY_READ_WINDOW_MAX),
-		persistedInspectConcurrency: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER).default(SESSION_QUERY_DEFAULT_PERSISTED_INSPECT_CONCURRENCY)
+		persistedReadConcurrency: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER).default(SESSION_QUERY_DEFAULT_PERSISTED_INSPECT_CONCURRENCY)
 	});
 	/** Validated and defaulted backend configuration. */
 	config;
@@ -1229,15 +1231,16 @@ function invalidCursor(cause) {
 	return new SessionQueryError("session-search cursor is invalid", "SESSION_QUERY_INVALID_CURSOR", { cause });
 }
 function resolveConfig(config) {
+	const dshHome = process.env.DSH_HOME ?? join(homedir(), ".dsh");
 	const resolved = {
-		path: config.path,
+		path: config.path ?? join(dshHome, "session-query-cjk.db"),
 		openAt: config.openAt ?? "startup",
 		journalMode: config.journalMode ?? "wal",
 		defaultLimit: config.defaultLimit ?? 20,
 		maxLimit: config.maxLimit ?? 100,
 		snippetChars: config.snippetChars ?? 240,
 		readWindowMax: config.readWindowMax ?? SESSION_QUERY_READ_WINDOW_MAX,
-		persistedInspectConcurrency: config.persistedInspectConcurrency ?? SESSION_QUERY_DEFAULT_PERSISTED_INSPECT_CONCURRENCY
+		persistedReadConcurrency: config.persistedReadConcurrency ?? SESSION_QUERY_DEFAULT_PERSISTED_INSPECT_CONCURRENCY
 	};
 	if (typeof resolved.path !== "string" || resolved.path.trim().length === 0) throw invalidConfig("path must not be blank");
 	if (![
@@ -1249,7 +1252,7 @@ function resolveConfig(config) {
 	assertPageLimit("maxLimit", resolved.maxLimit);
 	assertPositiveInteger("snippetChars", resolved.snippetChars);
 	if (!Number.isInteger(resolved.readWindowMax) || resolved.readWindowMax < 0) throw invalidConfig("readWindowMax must be a non-negative integer");
-	if (!Number.isSafeInteger(resolved.persistedInspectConcurrency) || resolved.persistedInspectConcurrency < 1) throw invalidConfig("persistedInspectConcurrency must be a positive safe integer");
+	if (!Number.isSafeInteger(resolved.persistedReadConcurrency) || resolved.persistedReadConcurrency < 1) throw invalidConfig("persistedReadConcurrency must be a positive safe integer");
 	if (resolved.defaultLimit > resolved.maxLimit) throw invalidConfig("defaultLimit must be less than or equal to maxLimit");
 	if (![
 		"wal",

@@ -36,18 +36,18 @@
   ],
   "license": "MIT",
   "peerDependencies": {
-    "@deepseek-ai/dsh-session": "^0.1.0-rc.7",
-    "@deepseek-ai/dsh-session-query": "^0.1.0-rc.7",
-    "@deepseek-ai/cordis": "^4.0.1"
+    "@deepseek-ai/dsh-session": "^0.1.5-rc.2",
+    "@deepseek-ai/dsh-session-query": "^0.1.5-rc.2",
+    "@deepseek-ai/cordis": "^4.0.2"
   },
   "dependencies": {
     "@deepseek-ai/schemastery": "^3.18.1",
     "sqlite-vec": "^0.1.9"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "^4.0.1",
-    "@deepseek-ai/dsh-session": "^0.1.0-rc.7",
-    "@deepseek-ai/dsh-session-query": "^0.1.0-rc.7",
+    "@deepseek-ai/cordis": "^4.0.2",
+    "@deepseek-ai/dsh-session": "^0.1.5-rc.2",
+    "@deepseek-ai/dsh-session-query": "^0.1.5-rc.2",
     "dsh-session-query-sqlite-cjk": "workspace:*"
   }
 }

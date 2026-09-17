@@ -297,6 +297,10 @@ export class MemorySkillsEngine extends Service {
 		const actual = path === ":memory:" ? path : resolve(path);
 		if (actual !== ":memory:") mkdirSync(dirname(actual), { recursive: true, mode: 448 });
 		const db = new DatabaseSync(actual);
+		if (actual !== ":memory:") {
+			db.exec("PRAGMA busy_timeout = 5000");
+			db.exec("PRAGMA journal_mode = WAL");
+		}
 		try {
 			const { application_id: applicationId } = db.prepare("PRAGMA application_id").get();
 			const { user_version: version } = db.prepare("PRAGMA user_version").get();

@@ -1,5 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import CjkSessionQueryEngine from "../lib/index.js";
 
 const SESSION_ID = "test-session";
@@ -48,7 +51,16 @@ const events = [
 const header = { version: 1, id: SESSION_ID, createdAt: NOW };
 
 function stubCtx() {
-	const session = { id: SESSION_ID, header, events };
+	// `seq`/`snapshotEvents` are the harness Session surface the inherited
+	// observation path reads; the search paths only use `header`/`events`.
+	const session = {
+		id: SESSION_ID,
+		header,
+		events,
+		seq: events.length,
+		inheritedEventCount: 0,
+		snapshotEvents: () => events
+	};
 	const sessions = {
 		list: () => [session],
 		get: (id) => (id === SESSION_ID ? session : void 0)
@@ -56,6 +68,8 @@ function stubCtx() {
 	return {
 		reflect: { provide() {} },
 		sessions,
+		// cordis service lookup: absent optional services must read as undefined.
+		get: () => void 0,
 		inject: () => ({ dispose() {} }),
 		effect: () => () => {},
 		logger: console
@@ -201,5 +215,33 @@ test("persisted-only session matches via the trigram table", async () => {
 		const page = await engine.searchEvents({ sessionId: SESSION_ID, query: "Token消耗", limit: 10 });
 		assert.equal(page.items.length, 1, "expected exactly the persisted mixed-script document");
 		assert.ok(page.items[0].snippet.includes("Token消耗"));
+	});
+});
+
+test("db path defaults to $DSH_HOME when config omits it", () => {
+	const dir = mkdtempSync(join(tmpdir(), "dsh-memory-cjk-"));
+	const previous = process.env.DSH_HOME;
+	process.env.DSH_HOME = dir;
+	try {
+		const engine = new CjkSessionQueryEngine(stubCtx(), { openAt: "never" });
+		assert.equal(engine.config.path, join(dir, "session-query-cjk.db"));
+	} finally {
+		if (previous === void 0) delete process.env.DSH_HOME;
+		else process.env.DSH_HOME = previous;
+		rmSync(dir, { recursive: true, force: true });
+	}
+});
+
+test("serves the harness history contract: observeSession returns a disposable live observation", async () => {
+	await withEngine(async (engine) => {
+		// The gateway loads session history through ctx.sessionQuery.observeSession;
+		// the inherited method is missing whenever the resolved base predates it.
+		assert.equal(typeof engine.observeSession, "function", "ctx.sessionQuery must expose observeSession");
+		const observation = await engine.observeSession(SESSION_ID);
+		assert.equal(observation.source, "live");
+		assert.equal(observation.header.id, SESSION_ID);
+		assert.equal(observation.events.length, events.length);
+		assert.equal(typeof observation[Symbol.dispose], "function");
+		observation[Symbol.dispose]();
 	});
 });

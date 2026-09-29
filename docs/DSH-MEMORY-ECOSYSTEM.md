@@ -11,7 +11,7 @@
 
 **一句话定位**：唯一在修 DSH 记忆地基（CJK 全文检索）+ 唯一做 Token 去重 + 唯一有 KV-safe 注入论证 + **已补齐技能自我进化**的**记忆全家桶**——不是"又一个记忆插件"。
 
-### 全家桶组成（8 包 / 65 单测）
+### 全家桶组成（8 包 / 69 单测）
 
 | 包 | 功能 | 生态唯一性 |
 |---|---|---|
@@ -26,7 +26,7 @@
 
 ### 为什么值得先看：4 个"别人没有"
 
-1. **CJK 检索修复（生态唯一）**——20+ 记忆插件几乎都建立在官方 `sessionQuery` 之上，而 unicode61 的中文缺陷意味着**整个生态的中文召回都是坏的**（`"Token消耗"`、`"索引优化"` 0 命中）；本仓库用 trigram + LIKE 回退修好地基，**所有记忆插件共同受益**。实测：unicode61 0 命中 → 本仓库全命中（含 1–2 字查询），12 单测全绿。
+1. **CJK 检索修复（生态唯一）**——20+ 记忆插件几乎都建立在官方 `sessionQuery` 之上，而 unicode61 的中文缺陷意味着**整个生态的中文召回都是坏的**（`"Token消耗"`、`"索引优化"` 0 命中）；本仓库用 trigram + LIKE 回退修好地基，**所有记忆插件共同受益**。实测：unicode61 0 命中 → 本仓库全命中（含 1–2 字查询），16 单测全绿。
 2. **技能自我进化**——`dsh-memory-skills`：模型可调用的 `skill_write/delete/list` 写 DSH 原生技能文件（写入即进会话技能目录），后台定时反思从完成回合蒸馏可复用技能；请求路径零开销（fire-and-forget），全部动作有日志。
 3. **Token 去重**——`dsh-tool-result-dedup` 从输入侧省 Token，与记忆检索正交，生态少见。
 4. **KV-safe 稳定注入**——基于源码级验证（`buildRequest` deepFreeze / KV 前缀缓存失效 / 持久化日志污染）得出的注入纪律；多数"每步自动注入"型插件会踩同一道墙（如 dsh-layered-memory）。
@@ -34,8 +34,9 @@
 
 ### 验证与测试
 
-- **65 单测**（7 包，node --test）：CJK 检索 12、技能管理器/进化 10、混合检索 8、去重 8、core 8、tool 8、compaction 7；
-- 真机验证报告（独立测试 profile，`docs/VERIFICATION.md`）：整树启动、`memory_search` 中文命中真实会话、跨会话持久化逐字注入；
+- **69 单测**（7 包，node --test）：CJK 检索 16、core 12、技能管理器/进化 10、混合检索 8、tool 8、compaction 8、去重 7；
+- **宿主版本要求**：DSH `0.1.5-rc.3` 及同代更新版本（cordis `^4.0.2`）。CJK 后端是上游 `SessionQueryEngine` 的继承子类，peer 必须与宿主解析成同一份，否则宿主会拿到缺 `observeSession()` 的 `ctx.sessionQuery`（issue #1，已修）；
+- 真机验证报告（独立测试 profile，`docs/VERIFICATION.md`）：整树启动、`memory_search` 中文命中真实会话、跨会话持久化逐字注入，附录 A 为宿主契约修复的复现与验证；
 - CJK 实测对照表（unicode61 vs trigram vs LIKE 回退）见 `packages/dsh-session-query-sqlite-cjk/README.md`。
 
 ### 与 Top 竞品的定位对照（一行版）
@@ -49,7 +50,7 @@
 
 ### 已知短板（诚实版，正在补）
 
-星标少（2⭐）、缺英文 README、npm 发布闭环未完成、无演示素材——**根因是曝光不足而非功能缺失**。
+星标少（2⭐）、npm 发布闭环未完成、无演示素材——**根因是曝光不足而非功能缺失**（英文 README 已补，见 [`README.en.md`](../README.en.md)）。
 
 ---
 

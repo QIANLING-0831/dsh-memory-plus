@@ -1,6 +1,8 @@
 # dsh-memory
 
-DeepSeek Harness（DSH）记忆优化的社区插件集（`dsh-plugin`）：中文可用的会话全文检索、工具结果去重、混合记忆检索、跨会话核心记忆、近无损压缩、**技能管理器 + 后台自我进化**。Phase 0–3 已落地，并在真实 harness（headless profile）中集成验证，65 个单测通过。
+DeepSeek Harness（DSH）记忆优化的社区插件集（`dsh-plugin`）：中文可用的会话全文检索、工具结果去重、混合记忆检索、跨会话核心记忆、近无损压缩、**技能管理器 + 后台自我进化**。Phase 0–3 已落地，并在真实 harness（headless profile）中集成验证，69 个单测通过。
+
+> **宿主版本要求**：DSH `0.1.5-rc.3` 及同代更新版本（cordis `^4.0.2`）。`ctx.sessionQuery` 由本仓的 CJK 插件作为上游 `SessionQueryEngine` 的**继承子类**提供，必须与宿主解析成同一份 `@deepseek-ai/dsh-session-query`，否则宿主会拿到缺少 `observeSession()` 的服务实例——详见 [issue #1](https://github.com/QIANLING-0831/dsh-memory-plus/issues/1) 与 `packages/dsh-session-query-sqlite-cjk/README.md` 的「宿主版本契约」。
 
 ---
 
@@ -195,7 +197,7 @@ cd $env:DSH_HOME/profiles/<profile> && pnpm install
 
 ```sh
 corepack pnpm install
-corepack pnpm test        # 65 个单测（node --test，8 个包）
+corepack pnpm test        # 69 个单测（node --test，7 个包：CJK 16 / core 12 / skills 10 / 混合检索 8 / 工具 8 / 压缩 8 / 去重 7）
 ```
 
 每个插件遵循 DSH 插件形态（`name` / `inject` / `Config` / `apply`，或 Service 类 + `super(ctx, name)`），测试覆盖检索、去重、压缩定位符、事实库、技能管理与后台进化等核心逻辑。

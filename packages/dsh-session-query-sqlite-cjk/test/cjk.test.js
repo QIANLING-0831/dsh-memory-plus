@@ -47,14 +47,32 @@ const events = [
 
 const header = { version: 1, id: SESSION_ID, createdAt: NOW };
 
+// The real dsh-session `Session` contract. Issue #1 was a stub that handed the
+// engine a plain `events` array, which no mounted release ever exposes: the
+// 0.1.0 line has an `events` getter, and every later release replaced it with
+// `snapshotEvents()`. A stub that fabricates `events` hides that disagreement.
+function liveSession() {
+	return {
+		id: SESSION_ID,
+		header,
+		inheritedEventCount: 0,
+		// `seq` is the live Session's next-seq cursor, which the host's
+		// SessionObservationReader reads to bound the snapshot.
+		seq: events.length,
+		snapshotEvents: () => events
+	};
+}
+
 function stubCtx() {
-	const session = { id: SESSION_ID, header, events };
+	const session = liveSession();
 	const sessions = {
 		list: () => [session],
 		get: (id) => (id === SESSION_ID ? session : void 0)
 	};
 	return {
 		reflect: { provide() {} },
+		// The mounted base class resolves the live Session through `ctx.get`.
+		get: (name) => (name === "sessions" ? sessions : void 0),
 		sessions,
 		inject: () => ({ dispose() {} }),
 		effect: () => () => {},
@@ -72,7 +90,9 @@ async function withEngine(fn) {
 }
 
 // A ctx whose session lives only behind the optional sessionPersistence service,
-// exercising the persisted_docs_cjk branch of the search queries.
+// exercising the persisted_docs_cjk branch of the search queries. The stub
+// speaks the legacy generation (listSnapshots + inspect); the handle-based
+// generation is covered by persistedSnapshotStubCtx below.
 function persistedStubCtx() {
 	const sessions = {
 		list: () => [],
@@ -98,6 +118,52 @@ function persistedStubCtx() {
 
 async function withPersistedEngine(fn) {
 	const engine = new CjkSessionQueryEngine(persistedStubCtx(), { path: ":memory:", openAt: "startup" });
+	try {
+		return await fn(engine);
+	} finally {
+		await engine.close();
+	}
+}
+
+// The handle-based persistence generation (DSH 0.1.3+): `list()` plus
+// `open(id, 'read')` and `handle.read()`, with no `listSnapshots`/`inspect`.
+// Reading the legacy pair unconditionally is what makes a mounted CJK provider
+// observe nothing, so this shape must be exercised explicitly.
+function persistedSnapshotStubCtx() {
+	const sessions = {
+		list: () => [],
+		get: () => void 0
+	};
+	return {
+		reflect: { provide() {} },
+		sessions,
+		inject: (deps, callback) => {
+			if (Array.isArray(deps) && deps.includes("sessionPersistence") && typeof callback === "function") {
+				const service = {
+					list: async () => [{
+						header,
+						revision: "r1",
+						inheritedEventCount: 0
+					}],
+					open: async () => ({
+						id: SESSION_ID,
+						header,
+						inheritedEventCount: 0,
+						read: async () => ({ eventState: "owned", events }),
+						close: async () => {}
+					})
+				};
+				callback({ sessionPersistence: service, effect: () => () => {} });
+			}
+			return { dispose() {} };
+		},
+		effect: () => () => {},
+		logger: console
+	};
+}
+
+async function withPersistedSnapshotEngine(fn) {
+	const engine = new CjkSessionQueryEngine(persistedSnapshotStubCtx(), { path: ":memory:", openAt: "startup" });
 	try {
 		return await fn(engine);
 	} finally {
@@ -202,4 +268,65 @@ test("persisted-only session matches via the trigram table", async () => {
 		assert.equal(page.items.length, 1, "expected exactly the persisted mixed-script document");
 		assert.ok(page.items[0].snippet.includes("Token消耗"));
 	});
+});
+
+// ---------------------------------------------------------------------------
+// Regression coverage for issue #1: the fork must satisfy the host's
+// `ctx.sessionQuery` contract and must read the live Session contract that is
+// actually mounted.
+// ---------------------------------------------------------------------------
+
+test("the engine inherits the host's public observeSession contract", async () => {
+	// `@deepseek-ai/dsh-api-session-controller` calls `ctx.sessionQuery.observeSession`
+	// for every session list, resume, fork, and proxy read. It is a concrete
+	// method on the mounted `SessionQueryEngine`, so a fork that extends a
+	// different `@deepseek-ai/dsh-session-query` copy than the host provides
+	// silently hands the host an object without it — the installed
+	// "observeSession is not a function" failure.
+	assert.equal(typeof CjkSessionQueryEngine.prototype.observeSession, "function", "CjkSessionQueryEngine must inherit observeSession from the mounted @deepseek-ai/dsh-session-query");
+	await withEngine(async (engine) => {
+		const observation = await engine.observeSession(SESSION_ID);
+		try {
+			assert.equal(observation.header.id, SESSION_ID);
+			assert.equal(observation.source, "live");
+			assert.deepEqual(observation.events.map((event) => event.seq), events.map((event) => event.seq));
+		} finally {
+			observation[Symbol.dispose]();
+		}
+	});
+});
+
+test("a live Session exposing only snapshotEvents() is indexed (issue #1)", async () => {
+	await withEngine(async (engine) => {
+		// `liveSession()` deliberately has no `events` array. Reading one anyway
+		// yields `undefined`, whose fold failure is swallowed by the best-effort
+		// search catch — i.e. "search never matches" instead of "indexing broke".
+		const page = await engine.searchEvents({ sessionId: SESSION_ID, query: "中文分词", limit: 10 });
+		assert.ok(page.items.length > 0, "expected the live session to be observed through snapshotEvents()");
+	});
+});
+
+test("persisted-only session matches via the handle-based persistence generation", async () => {
+	await withPersistedSnapshotEngine(async (engine) => {
+		const page = await engine.searchEvents({ sessionId: SESSION_ID, query: "中文分词", limit: 10 });
+		assert.ok(page.items.length > 0, "expected an observation through list()/open()/read()");
+		assert.ok(page.items[0].snippet.includes("中文分词"));
+	});
+});
+
+test("an unusable live Session contract fails loudly instead of reporting no hits", async () => {
+	const ctx = stubCtx();
+	ctx.sessions = {
+		list: () => [{ id: SESSION_ID, header }],
+		get: () => ({ id: SESSION_ID, header })
+	};
+	const engine = new CjkSessionQueryEngine(ctx, { path: ":memory:", openAt: "startup" });
+	try {
+		await assert.rejects(
+			() => engine.searchEvents({ sessionId: SESSION_ID, query: "中文分词", limit: 10 }),
+			/snapshotEvents/
+		);
+	} finally {
+		await engine.close();
+	}
 });

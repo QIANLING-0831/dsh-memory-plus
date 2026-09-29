@@ -213,14 +213,20 @@ export class MemorySearchEngine extends Service {
 	* Index a session's log incrementally: embed only documents with seq greater
 	* than the last indexed seq. Append-only assumption; a shrunk log triggers a
 	* full reindex of the session's rows.
-	* @param session - live session `{ header, events }` (or `{ header, events }` from persistence).
+	* @param session - live `Session` (or a `{ header, events }` snapshot from persistence).
 	* @returns the number of newly indexed documents.
 	*/
 	async indexSession(session) {
 		await this._ensureReady();
 		const db = this._db;
+		// A live `Session` never exposes an `events` array: the 0.1.0 line has an
+		// `events` getter and every later release replaced it with
+		// `snapshotEvents()`. Without this fallback `session.events` is
+		// `undefined`, the fold throws, and the best-effort caller turns
+		// "indexing is broken" into `memory_search` never matching anything.
+		const events = Array.isArray(session.events) ? session.events : session.snapshotEvents();
 		const { id } = session.header;
-		const docs = buildSessionEventSearchDocuments(id, session.events);
+		const docs = buildSessionEventSearchDocuments(id, events);
 		const row = db.prepare("SELECT last_seq, header_fingerprint FROM session_index WHERE session_id = ?").get(id);
 		const headerFingerprint = fingerprintOf(session.header);
 		if (row !== void 0 && row.header_fingerprint !== headerFingerprint) {
@@ -272,9 +278,18 @@ export class MemorySearchEngine extends Service {
 		}
 		try {
 			const loaded = await this.ctx.sessionQuery.readSession(sessionId);
-			await this.indexSession({ header: loaded.header, events: loaded.events });
-		} catch {
-			/* best-effort: search proceeds with whatever is indexed */
+			// `SessionLogSnapshot` carries the cloned header as `session` on the
+			// current session-query line; `header` is accepted as a fallback so a
+			// host that still uses the older name is not read as `undefined`.
+			await this.indexSession({ header: loaded.session ?? loaded.header, events: loaded.events });
+		} catch (error) {
+			// Best-effort by design, but never silent: a swallowed indexing failure
+			// is indistinguishable from "this session has no matches".
+			try {
+				this.ctx.logger?.warn?.(`memory-index: could not index session ${sessionId}: ${error instanceof Error ? error.message : String(error)}`);
+			} catch {
+				/* a broken logger must never mask the original failure */
+			}
 		}
 	}
 	/** kNN over all indexed chunks (session scoping happens in JS via `chunks`). */

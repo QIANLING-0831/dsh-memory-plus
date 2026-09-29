@@ -98,6 +98,9 @@ cd $env:DSH_HOME/profiles/<profile> && pnpm install
 
 Plugin defaults live in [`packages/dsh-memory-bundle/cordis.patch.yml`](packages/dsh-memory-bundle/cordis.patch.yml) (relative derived-DB paths — use absolute paths in production).
 
+> **Host version requirement: DSH `0.1.5-rc.3` or a later release of the same generation (cordis `^4.0.2`).**
+> Every package here declares that generation as a peer dependency, and this is not a formality: `ctx.sessionQuery` is provided by `dsh-session-query-sqlite-cjk` as a **subclass** of `SessionQueryEngine`. If the plugin resolves a *different* `@deepseek-ai/dsh-session-query` copy than the host provides, the host receives a service instance with no `observeSession()` — session list, history, resume, and fork then fail (issue #1). See the "host version contract" section of [`packages/dsh-session-query-sqlite-cjk/README.md`](packages/dsh-session-query-sqlite-cjk/README.md).
+
 ## 5. Usage
 
 The model gets five tools:

@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { Service } from "@deepseek-ai/cordis";
 import z from "@deepseek-ai/schemastery";
-import SessionQueryEngine, { SESSION_QUERY_DEFAULT_PERSISTED_INSPECT_CONCURRENCY, SESSION_QUERY_READ_WINDOW_MAX, SessionQueryError, SessionSearchCursor, assertSessionHeadersCompatible, buildSessionEventSearchDocuments, materializeSessionEventResultFilters, materializeSessionResultFilters } from "@deepseek-ai/dsh-session-query";
+import SessionQueryEngine, { SESSION_QUERY_DEFAULT_PERSISTED_INSPECT_CONCURRENCY, SESSION_QUERY_DEFAULT_PREPARED_SESSION_CACHE_SIZE, SESSION_QUERY_READ_WINDOW_MAX, SessionQueryError, SessionSearchCursor, assertSessionHeadersCompatible, buildSessionEventSearchDocuments, materializeSessionEventResultFilters, materializeSessionResultFilters } from "@deepseek-ai/dsh-session-query";
 import { mkdir, open } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 //#region lib/types/schema.js
@@ -531,7 +531,8 @@ var CjkSessionQueryEngine = class extends SessionQueryEngine {
 		maxLimit: z.number().step(1).min(1).max(SQLITE_MAX_PAGE_LIMIT).default(100),
 		snippetChars: z.number().step(1).min(1).default(240),
 		readWindowMax: z.number().step(1).min(0).default(SESSION_QUERY_READ_WINDOW_MAX),
-		persistedInspectConcurrency: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER).default(SESSION_QUERY_DEFAULT_PERSISTED_INSPECT_CONCURRENCY)
+		persistedReadConcurrency: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER).default(SESSION_QUERY_DEFAULT_PERSISTED_INSPECT_CONCURRENCY),
+		preparedSessionCacheSize: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER).default(SESSION_QUERY_DEFAULT_PREPARED_SESSION_CACHE_SIZE)
 	});
 	/** Validated and defaulted backend configuration. */
 	config;
@@ -751,20 +752,20 @@ var CjkSessionQueryEngine = class extends SessionQueryEngine {
 			let persisted = /* @__PURE__ */ new Map();
 			if (persistence !== void 0) try {
 				const canReuseIndexed = this._lastPersistenceIdentity === void 0 || this._lastPersistenceIdentity === persistenceBinding.identity;
-				const before = await persistence.listSnapshots(signal);
+				const before = await listPersistedSnapshots(persistence, signal);
 				assertNotAborted(signal);
 				persisted = materializePersistenceSnapshots(before);
 				for (const entry of persisted.values()) {
 					if (canReuseIndexed && indexed.get(entry.header.id)?.revision === entry.revision) continue;
 					if (initiallyLive.has(entry.header.id) || this.ctx.sessions.get(entry.header.id) !== void 0) continue;
 					assertNotAborted(signal);
-					const loaded = await persistence.inspect(entry.header.id, signal);
+					const loaded = await readPersistedLog(persistence, entry.header.id, signal);
 					assertNotAborted(signal);
-					assertSessionHeadersCompatible(entry.header, loaded.meta);
-					entry.loaded = observeSession(loaded.meta, loaded.events);
+					assertSessionHeadersCompatible(entry.header, loaded.header);
+					entry.loaded = observeSession(loaded.header, loaded.events, loaded.inheritedEventCount);
 				}
 				assertNotAborted(signal);
-				const afterSnapshots = await persistence.listSnapshots(signal);
+				const afterSnapshots = await listPersistedSnapshots(persistence, signal);
 				assertNotAborted(signal);
 				const after = materializePersistenceSnapshots(afterSnapshots);
 				if (!samePersistenceSnapshots(persisted, after)) continue;
@@ -773,6 +774,8 @@ var CjkSessionQueryEngine = class extends SessionQueryEngine {
 				if (isAbort(error) || signal?.aborted) throw new SessionQueryError("session-search aborted", "SESSION_QUERY_ABORTED", { cause: error });
 				if (this._persistenceBinding !== persistenceBinding) continue;
 				if (error instanceof SessionQueryError) throw error;
+				/* A persistence API mismatch is otherwise invisible: the caller's best-effort search catch reports it as "no matches". */
+				warnOnce(this.ctx, `session-search persistence observation failed: ${errorMessage(error)}`);
 				throw new SessionQueryError(`session-search persistence observation failed: ${errorMessage(error)}`, "SESSION_QUERY_PERSISTENCE_FAILED", { cause: error });
 			}
 			const live = /* @__PURE__ */ new Map();
@@ -1148,19 +1151,120 @@ function selectedDocumentsParams(mode, query, persistenceVisible) {
 	];
 }
 function observeLive(session) {
-	return observeSession(session.header, session.events);
+	return observeSession(session.header, sessionEvents(session));
 }
-function observeSession(header, events) {
+/**
+* Read one Session's immutable log through whichever contract the mounted
+* `@deepseek-ai/dsh-session` exposes.
+*
+* `Session.events` is a snapshot getter in the 0.1.0 line and was replaced by
+* `snapshotEvents()` later; a fork must not assume either, because reading the
+* wrong one yields `undefined` and the resulting `undefined.entries()` is
+* swallowed by the best-effort search catch, which turns "indexing is broken"
+* into "no matches" (issue #1's failure mode).
+* @param session - live Session or a `{ header, events }` snapshot.
+* @returns the session's event log.
+*/
+function sessionEvents(session) {
+	if (Array.isArray(session.events)) return session.events;
+	if (typeof session.snapshotEvents === "function") return session.snapshotEvents();
+	throw new SessionQueryError("live session exposes neither `events` nor `snapshotEvents()`; this backend is not compatible with the mounted @deepseek-ai/dsh-session", "SESSION_QUERY_PERSISTENCE_FAILED");
+}
+function observeSession(header, events, inheritedEventCount) {
 	const detachedHeader = structuredClone(header);
 	const detachedEvents = events.map((event) => structuredClone(event));
 	return {
 		header: detachedHeader,
+		inheritedEventCount: normalizeInheritedEventCount(inheritedEventCount),
 		documents: buildSessionEventSearchDocuments(detachedHeader.id, detachedEvents),
 		fingerprint: createHash("sha256").update(JSON.stringify({
 			header: detachedHeader,
 			events: detachedEvents
 		})).digest("base64url")
 	};
+}
+/**
+* Normalize the fork-inherited prefix length, which only later dsh-session
+* releases carry.
+* @param value - observed inherited event count, when the source exposes one.
+* @returns a non-negative integer offset.
+*/
+function normalizeInheritedEventCount(value) {
+	return Number.isSafeInteger(value) && value > 0 ? value : 0;
+}
+/**
+* Read a header plus its exact inherited offset from whichever persistence
+* observation shape the mounted backend exposes.
+* @param value - `SessionHandle` (handle-based backends) or a session snapshot record.
+* @returns the header and normalized inherited event count.
+*/
+function snapshotHeader(value) {
+	return {
+		header: value.header,
+		inheritedEventCount: normalizeInheritedEventCount(value.inheritedEventCount)
+	};
+}
+/**
+* List stored sessions through whichever `ctx.sessionPersistence` API the
+* mounted DSH release provides.
+*
+* Two generations are in the wild: `listSnapshots()` on the 0.1.0/0.1.1 line
+* and `list()` on the handle-based line (0.1.3 and later). Reading only one of
+* them throws inside the best-effort observation path, which the caller's catch
+* turns into "session search never matches anything" — indistinguishable from
+* an empty index (issue #1's failure mode), so both are supported explicitly.
+* @param persistence - mounted session persistence service.
+* @param signal - optional cancellation.
+* @returns one `{ header, revision }` record per stored session.
+*/
+async function listPersistedSnapshots(persistence, signal) {
+	if (typeof persistence.listSnapshots === "function") return await persistence.listSnapshots(signal);
+	const listed = await persistence.list(signal === void 0 ? void 0 : { signal });
+	if (!isRuntimeArray(listed)) throw new Error("ctx.sessionPersistence.list() must resolve to an array");
+	return listed.map((entry) => ({
+		...snapshotHeader(entry),
+		revision: entry.revision
+	}));
+}
+/**
+* Read one stored session's complete balanced log through whichever
+* persistence generation is mounted.
+*
+* `inspect()` is the classic path (persistence 0.1.0/0.1.1); the handle-based
+* generation (0.1.3 and later) replaced it with `open(id, 'read')` plus
+* `read()`, so both are supported explicitly. The subtle tradeoff: the
+* handle-based read returns the raw stored slice, without the synthetic
+* interrupted-turn closers that `readColdSessionLog` appends upstream, so a
+* session whose writer crashed mid-turn can contribute a slightly different
+* (unclosed) transcript to the index than upstream's own backend. Search still
+* matches its text; only the fold of that one damaged tail differs.
+* @param persistence - mounted session persistence service.
+* @param sessionId - stored session to read.
+* @param signal - optional cancellation.
+* @returns the stored header, its inherited offset, and the complete log.
+*/
+async function readPersistedLog(persistence, sessionId, signal) {
+	if (typeof persistence.inspect === "function") {
+		const inspected = await persistence.inspect(sessionId, signal);
+		return {
+			header: inspected.meta ?? inspected.header,
+			inheritedEventCount: normalizeInheritedEventCount(inspected.inheritedEventCount),
+			events: inspected.events
+		};
+	}
+	if (typeof persistence.open === "function") {
+		const handle = await persistence.open(sessionId, "read", signal === void 0 ? void 0 : { signal });
+		try {
+			const read = await handle.read(0, void 0, signal === void 0 ? void 0 : { signal });
+			return {
+				...snapshotHeader(handle),
+				events: read.events
+			};
+		} finally {
+			await handle.close();
+		}
+	}
+	throw new Error("ctx.sessionPersistence exposes neither inspect() nor open(); this backend is not compatible with the mounted persistence service");
 }
 function materializePersistenceSnapshots(snapshots) {
 	if (!isRuntimeArray(snapshots)) throw new Error("persistence snapshots must be an array");
@@ -1237,7 +1341,9 @@ function resolveConfig(config) {
 		maxLimit: config.maxLimit ?? 100,
 		snippetChars: config.snippetChars ?? 240,
 		readWindowMax: config.readWindowMax ?? SESSION_QUERY_READ_WINDOW_MAX,
-		persistedInspectConcurrency: config.persistedInspectConcurrency ?? SESSION_QUERY_DEFAULT_PERSISTED_INSPECT_CONCURRENCY
+		/* Upstream renamed the knob in the 0.1.3 line; the pre-rename spelling is still honored so an existing profile keeps working. */
+		persistedReadConcurrency: config.persistedReadConcurrency ?? config.persistedInspectConcurrency ?? SESSION_QUERY_DEFAULT_PERSISTED_INSPECT_CONCURRENCY,
+		preparedSessionCacheSize: config.preparedSessionCacheSize ?? SESSION_QUERY_DEFAULT_PREPARED_SESSION_CACHE_SIZE
 	};
 	if (typeof resolved.path !== "string" || resolved.path.trim().length === 0) throw invalidConfig("path must not be blank");
 	if (![
@@ -1249,7 +1355,8 @@ function resolveConfig(config) {
 	assertPageLimit("maxLimit", resolved.maxLimit);
 	assertPositiveInteger("snippetChars", resolved.snippetChars);
 	if (!Number.isInteger(resolved.readWindowMax) || resolved.readWindowMax < 0) throw invalidConfig("readWindowMax must be a non-negative integer");
-	if (!Number.isSafeInteger(resolved.persistedInspectConcurrency) || resolved.persistedInspectConcurrency < 1) throw invalidConfig("persistedInspectConcurrency must be a positive safe integer");
+	if (!Number.isSafeInteger(resolved.persistedReadConcurrency) || resolved.persistedReadConcurrency < 1) throw invalidConfig("persistedReadConcurrency must be a positive safe integer");
+	if (!Number.isSafeInteger(resolved.preparedSessionCacheSize) || resolved.preparedSessionCacheSize < 1) throw invalidConfig("preparedSessionCacheSize must be a positive safe integer");
 	if (resolved.defaultLimit > resolved.maxLimit) throw invalidConfig("defaultLimit must be less than or equal to maxLimit");
 	if (![
 		"wal",
@@ -1299,6 +1406,19 @@ function asError(error) {
 }
 function errorMessage(error) {
 	return error instanceof Error ? error.message : "unknown error";
+}
+/**
+* Report a swallowed-by-design failure to the host log, without letting a
+* logging failure replace the real error.
+* @param ctx - service context carrying the host logger.
+* @param message - diagnostic message.
+*/
+function warnOnce(ctx, message) {
+	try {
+		ctx.logger?.warn?.(message);
+	} catch {
+		/* a broken logger must never mask the original failure */
+	}
 }
 function isRuntimeArray(value) {
 	return Array.isArray(value);

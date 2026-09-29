@@ -40,7 +40,10 @@ plugins:
 
 1. **node:sqlite 必须 `new DatabaseSync(path, { allowExtension: true })`** 否则 `loadExtension` 报 "extension loading is not allowed"；
 2. **node:sqlite 把 JS number 绑定为 REAL**，sqlite-vec 的 rowid 要求 INTEGER → 插入用 `CAST(? AS INTEGER)`（或 BigInt）；
-3. FTS5 `highlight()` 不接受 schema 限定表名（`temp.live_docs` 会被当列名）——见 CJK 包。
+3. FTS5 `highlight()` 不接受 schema 限定表名（`temp.live_docs` 会被当列名）——见 CJK 包；
+4. **活 `Session` 没有 `events` 数组**：0.1.0 线只有 `events` getter，0.1.1+ 改成 `snapshotEvents()`。`indexSession` 必须 `session.events ?? session.snapshotEvents()`，否则拿到 `undefined`、fold 抛错，而 `search()` 的 best-effort `catch` 会把它变成"永远 0 命中"——症状与"没有匹配"完全一样。为什么之前单测没抓住：stub 手工构造了 `{ header, events }`，用测试假设替代了真机契约；
+5. **`readSession()` 的返回里 header 字段名是 `session`**（不是 `header`）：`{ session, inheritedEventCount, events }`，取错会拿到 `undefined` 并在 `session.header` 上抛错——同样被上面那个 catch 吞掉。本包用 `loaded.session ?? loaded.header` 兼容两代；
+6. **best-effort 不等于静默**：`_ensureSessionIndexed` 的 catch 现在会 `logger.warn`，检索失败也带 stack 输出；否则"链路坏了"永远无法与"没命中"区分。
 
 ## 测试
 

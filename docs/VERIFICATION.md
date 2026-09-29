@@ -132,3 +132,56 @@ sqlite3 "$env:DSH_HOME\memory-skills.db" "SELECT kind, name, substr(reason,1,60)
 | 7 | 卸载后技能文件保留 | ⏳ 未测（纯 Markdown，设计保证） |
 
 发现问题请附输出，反馈到仓库 issue 或讨论帖。
+
+---
+
+# 附录 A：宿主版本契约（issue #1）
+
+> 触发：issue #1（DSH Desktop 2.0.4 / `TypeError: this.ctx.sessionQuery.observeSession is not a function`；同帖评论区里 0.1.5-rc.3 宿主上的历史加载失败是同一个根因）。
+
+## A.1 根因
+
+`ctx.sessionQuery` 由本仓的 `dsh-session-query-sqlite-cjk` 提供，它是 `SessionQueryEngine` 的**继承子类**；而宿主（`dsh-api-session-controller`、gateway、`readSession`/fork/resume）把这个服务当作**它自己安装的那份** `@deepseek-ai/dsh-session-query` 来调用。当两边的 `@deepseek-ai/dsh-session-query` 不是同一份时：
+
+- 引擎继承的基类没有 `observeSession()`（该方法自 upstream **0.1.2-rc.1** 起才在基类上，fork 此前 pin 的是 `^0.1.0-rc.7`），
+- 宿主拿到的是一个 "看起来像 sessionQuery、但缺方法" 的对象，
+- 于是会话列表把 cold session 降级为 visible 并逐条告警，历史/恢复/fork 一并受损。
+
+## A.2 三处修复
+
+1. peer/dev 依赖统一到宿主当代版本 `^0.1.5-rc.3`（cordis `^4.0.2`）：保证与宿主解析成**同一份** `dsh-session-query`，`observeSession()` 由基类提供。
+2. 活会话日志读取归一化：`session.events`（0.1.0 线）与 `session.snapshotEvents()`（0.1.1+）两者都认，都不认则**显式抛错**。
+3. 持久化读取适配两代 API：`listSnapshots()`/`inspect()`（0.1.0–0.1.1）与 `list()`/`open()`/`read()`（0.1.3+）。
+
+三者共同的失败模式都是**静默**：观察异常被 best-effort 的检索 catch 成空结果，"链路坏了" 与 "没有命中" 无法区分。
+
+## A.3 复现与验证
+
+```powershell
+# 1) 全量单测（含 issue #1 三条回归）
+node --test --experimental-test-isolation=none `
+  packages/dsh-session-query-sqlite-cjk/test/cjk.test.js `
+  packages/dsh-memory-index/test/memory-index.test.js
+```
+
+**红→绿交叉验证（已做）**：在 `packages/dsh-session-query-sqlite-cjk/node_modules/@deepseek-ai/dsh-session-query`
+位置临时放一个 re-export 真实模块、但把基类 `observeSession` 抹成 `undefined` 的替身（等价于旧 peer 解析出另一份基类的状态），
+
+```powershell
+node packages/dsh-session-query-sqlite-cjk/test/cjk.test.js
+# → AssertionError: CjkSessionQueryEngine must inherit observeSession from the mounted @deepseek-ai/dsh-session-query
+```
+
+确认该回归**确实会因为缺少 `observeSession` 变红**（而不是永远绿），再换回 `^0.1.5-rc.3` 得到 16/16 绿。
+
+| # | 验证项 | 结果 |
+|---|---|---|
+| A1 | `CjkSessionQueryEngine.prototype.observeSession` 是函数，且能对真实形态活会话完成 observation | ✅ 单测（`@deepseek-ai/dsh-session-query@0.1.5-rc.3`） |
+| A2 | 只提供 `header` + `snapshotEvents()` 的会话仍可检索到 | ✅ 单测 |
+| A3 | `list()`/`open()`/`read()` 一代持久化仍可检索到只剩持久化记录的会话 | ✅ 单测 |
+| A4 | 两代都不认时显式报错，而非静默 0 命中 | ✅ 单测（`assert.rejects`） |
+| A5 | 全仓单测 | ✅ 69/69 |
+| A6 | 真实 DSH 进程（会话列表 / 历史 / 恢复） | ⏳ 待宿主侧实测确认 |
+
+> A6 需要在装有本 bundle 的 profile 上实测：本次改动只做到"契约级 + 单测级"验证，未在真实宿主进程中复现 issue #1 的场景（该宿主版本 `@deepseek-ai/dsh-desktop` 不在本机）。
+

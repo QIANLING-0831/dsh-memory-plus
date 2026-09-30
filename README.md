@@ -2,7 +2,7 @@
 
 DeepSeek Harness（DSH）记忆优化的社区插件集（`dsh-plugin`）：中文可用的会话全文检索、工具结果去重、混合记忆检索、跨会话核心记忆、近无损压缩、**技能管理器 + 后台自我进化**。Phase 0–3 已落地，并在真实 harness（headless profile）中集成验证，69 个单测通过。
 
-> **宿主版本要求**：DSH `0.1.5-rc.3` 及同代更新版本（cordis `^4.0.2`）。`ctx.sessionQuery` 由本仓的 CJK 插件作为上游 `SessionQueryEngine` 的**继承子类**提供，必须与宿主解析成同一份 `@deepseek-ai/dsh-session-query`，否则宿主会拿到缺少 `observeSession()` 的服务实例——详见 [issue #1](https://github.com/QIANLING-0831/dsh-memory-plus/issues/1) 与 `packages/dsh-session-query-sqlite-cjk/README.md` 的「宿主版本契约」。
+> **宿主版本要求**：DSH **`>=0.1.5-rc.3 <0.3.0`**（cordis `^4.0.1`），已在 **0.1.5-rc.3 与 0.2.0-rc.2** 上验证。`ctx.sessionQuery` 由本仓的 CJK 插件作为上游 `SessionQueryEngine` 的**继承子类**提供，必须与宿主解析成同一份 `@deepseek-ai/dsh-session-query`，否则宿主会拿到缺少 `observeSession()` 的服务实例——详见 [issue #1](https://github.com/QIANLING-0831/dsh-memory-plus/issues/1) 与 `packages/dsh-session-query-sqlite-cjk/README.md` 的「宿主版本契约」。
 
 ---
 
@@ -128,8 +128,8 @@ cd $env:DSH_HOME/profiles/<profile> && pnpm install
 
 > 注意：`dsh plugin add` 的本地路径参数必须带 `./` 前缀（裸写 `packages/...` 会被 pnpm 当成 git 依赖）。需要 `dsh` 和 `pnpm` 都在 PATH（pnpm 可用 `corepack pnpm` 桥接）。
 
-> **宿主版本要求：DSH `0.1.5-rc.3` 及以后同代版本（cordis `^4.0.2`）。**
-> 本仓所有包都已在 peerDependencies 中声明这一代版本。这不是形式要求：`ctx.sessionQuery` 由本仓的 `dsh-session-query-sqlite-cjk` 作为 `SessionQueryEngine` 的**继承子类**提供，若它与宿主解析成**两份不同的** `@deepseek-ai/dsh-session-query`，宿主拿到的服务实例会缺少 `observeSession()`，表现为会话列表/历史/恢复/fork 失败（issue #1）。装完后如果宿主版本不符，插件包自身会因 peer 不匹配报警——请以报警为准，不要降级 peer 声明。细节见 [`packages/dsh-session-query-sqlite-cjk/README.md`](packages/dsh-session-query-sqlite-cjk/README.md) 的「宿主版本契约」。
+> **宿主版本要求：DSH `>=0.1.5-rc.3 <0.3.0`（cordis `^4.0.1`），已在 0.1.5-rc.3 与 0.2.0-rc.2 上验证。**
+> 上界停在 `<0.3.0` 是有意的：0.2.0 起宿主新增了**安装/启动前的 peer 门禁**（`evaluatePluginCompatibility`），声明范围不匹配会直接拒绝加载整棵树（issue #3）。实际跑过的版本只有 0.1.5-rc.3 与 0.2.0-rc.2，所以未来 0.3.0 应该**报错让人来验证**，而不是被静默当作兼容。装完后如宿主版本不符，插件会因 peer 不匹配报警——请以报警为准，不要降级 peer 声明。细节见 [`packages/dsh-session-query-sqlite-cjk/README.md`](packages/dsh-session-query-sqlite-cjk/README.md) 的「宿主版本契约」。
 
 ### 方式三：下载 Release 源码包
 

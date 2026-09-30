@@ -2,7 +2,7 @@
 
 A community plugin suite (`dsh-plugin`) that makes DeepSeek Harness (DSH) memory actually work: CJK-capable full-text session search, tool-result dedup, hybrid memory retrieval, cross-session core memory, near-lossless compaction, and a **skill manager with background self-evolution**. Phases 0–3 are implemented (0–2 integration-verified on a real harness; Phase 3 verification steps in [`docs/VERIFICATION.md`](docs/VERIFICATION.md)); 69 unit tests pass.
 
-> **Host requirement: DSH `0.1.5-rc.3` or a later release of the same generation (cordis `^4.0.2`).** `ctx.sessionQuery` is provided by this repo's CJK plugin as a **subclass** of upstream `SessionQueryEngine`, so it must resolve the *same* `@deepseek-ai/dsh-session-query` copy as the host — otherwise the host gets a service instance without `observeSession()`. See [issue #1](https://github.com/QIANLING-0831/dsh-memory-plus/issues/1) and the "host version contract" section of `packages/dsh-session-query-sqlite-cjk/README.md`.
+> **Host requirement: DSH `>=0.1.5-rc.3 <0.3.0` (cordis `^4.0.1`), verified on 0.1.5-rc.3 and 0.2.0-rc.2.** `ctx.sessionQuery` is provided by this repo's CJK plugin as a **subclass** of upstream `SessionQueryEngine`, so it must resolve the *same* `@deepseek-ai/dsh-session-query` copy as the host — otherwise the host gets a service instance without `observeSession()`. See [issue #1](https://github.com/QIANLING-0831/dsh-memory-plus/issues/1) and the "host version contract" section of `packages/dsh-session-query-sqlite-cjk/README.md`.
 
 ---
 
@@ -100,8 +100,8 @@ cd $env:DSH_HOME/profiles/<profile> && pnpm install
 
 Plugin defaults live in [`packages/dsh-memory-bundle/cordis.patch.yml`](packages/dsh-memory-bundle/cordis.patch.yml) (relative derived-DB paths — use absolute paths in production).
 
-> **Host version requirement: DSH `0.1.5-rc.3` or a later release of the same generation (cordis `^4.0.2`).**
-> Every package here declares that generation as a peer dependency, and this is not a formality: `ctx.sessionQuery` is provided by `dsh-session-query-sqlite-cjk` as a **subclass** of `SessionQueryEngine`. If the plugin resolves a *different* `@deepseek-ai/dsh-session-query` copy than the host provides, the host receives a service instance with no `observeSession()` — session list, history, resume, and fork then fail (issue #1). See the "host version contract" section of [`packages/dsh-session-query-sqlite-cjk/README.md`](packages/dsh-session-query-sqlite-cjk/README.md).
+> **Host version requirement: DSH `>=0.1.5-rc.3 <0.3.0` (cordis `^4.0.1`), verified on 0.1.5-rc.3 and 0.2.0-rc.2.**
+> The `<0.3.0` upper bound is deliberate: DSH 0.2.0 added a hard pre-install/pre-boot peer gate (`evaluatePluginCompatibility`), and a declared range that does not match makes the whole tree refuse to load (issue #3). Only 0.1.5-rc.3 and 0.2.0-rc.2 have actually been exercised, so a future 0.3.0 should **fail loudly and be verified**, not be silently claimed compatible. See the "host version contract" section of [`packages/dsh-session-query-sqlite-cjk/README.md`](packages/dsh-session-query-sqlite-cjk/README.md).
 
 ## 5. Usage
 

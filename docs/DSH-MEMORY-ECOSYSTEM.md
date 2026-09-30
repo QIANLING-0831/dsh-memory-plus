@@ -35,7 +35,7 @@
 ### 验证与测试
 
 - **69 单测**（7 包，node --test）：CJK 检索 16、core 12、技能管理器/进化 10、混合检索 8、tool 8、compaction 8、去重 7；
-- **宿主版本要求**：DSH `0.1.5-rc.3` 及同代更新版本（cordis `^4.0.2`）。CJK 后端是上游 `SessionQueryEngine` 的继承子类，peer 必须与宿主解析成同一份，否则宿主会拿到缺 `observeSession()` 的 `ctx.sessionQuery`（issue #1，已修）；
+- **宿主版本要求**：DSH `>=0.1.5-rc.3 <0.3.0`（cordis `^4.0.1`），已在 0.1.5-rc.3 与 **0.2.0-rc.2** 上验证。CJK 后端是上游 `SessionQueryEngine` 的继承子类，peer 必须与宿主解析成同一份，否则宿主会拿到缺 `observeSession()` 的 `ctx.sessionQuery`（issue #1，已修）；0.2.0 起宿主还有 install/boot 前的 peer 门禁，声明范围不匹配会拒绝加载整棵树（issue #3，已修）；
 - 真机验证报告（独立测试 profile，`docs/VERIFICATION.md`）：整树启动、`memory_search` 中文命中真实会话、跨会话持久化逐字注入，附录 A 为宿主契约修复的复现与验证；
 - CJK 实测对照表（unicode61 vs trigram vs LIKE 回退）见 `packages/dsh-session-query-sqlite-cjk/README.md`。
 

@@ -22,7 +22,7 @@ CJK 可用的 `ctx.sessionQuery` 后端：继承 `@deepseek-ai/dsh-session-query
 
 ## 与上游的关系（fork 声明）
 
-本包是 [`@deepseek-ai/dsh-session-query-sqlite`](https://github.com/deepseek-ai/deepseek-harness)（MIT，**v0.1.5-rc.3**）的 fork-copy，完整保留了上游的调和状态机、generation、TEMP shadow、游标、分页等全部契约。改动仅：
+本包是 [`@deepseek-ai/dsh-session-query-sqlite`](https://github.com/deepseek-ai/deepseek-harness)（MIT，fork 基线 **v0.1.5-rc.3**，已在 **0.2.0-rc.2** 上交叉验证）的 fork-copy，完整保留了上游的调和状态机、generation、TEMP shadow、游标、分页等全部契约。改动仅：
 
 1. 派生库标识：`application_id = 1146308690`（与上游 1146308689 区分，防止混用），`user_version = 1`；打开已有库时对**本 fork 与上游**两种标识都执行派生表白名单校验 + 版本不一致就地 reset 重建（老库自动迁移）；
 2. 新增两张 trigram FTS5 表：`persisted_docs_cjk` / `temp.live_docs_cjk`（双写索引，删除同步），表名已加入 `DERIVED_USER_TABLES` 白名单；
@@ -36,12 +36,16 @@ CJK 可用的 `ctx.sessionQuery` 后端：继承 `@deepseek-ai/dsh-session-query
 
 `ctx.sessionQuery` 是**继承子类**实现的：本引擎 `extends SessionQueryEngine`，而宿主（`dsh-api-session-controller` / gateway / `readSession` 等）直接把 `ctx.sessionQuery` 当作它自己安装的那个 `@deepseek-ai/dsh-session-query` 来调用。两件事必须同时成立：
 
-1. **本包声明的 peer 版本必须与宿主提供的 `@deepseek-ai/dsh-session-query` 解析成同一份**（`^0.1.5-rc.3`）。否则本引擎继承的是另一份基类，宿主拿到的是一个没有 `observeSession()` 的服务实例，表现为：
+1. **本包声明的 peer 版本必须与宿主提供的 `@deepseek-ai/dsh-session-query` 解析成同一份**（当前声明 `>=0.1.5-rc.3 <0.3.0`）。否则本引擎继承的是另一份基类，宿主拿到的是一个没有 `observeSession()` 的服务实例，表现为：
    `api-session.list: small cold observation for "..." failed; serving it as visible: TypeError: this.ctx.sessionQuery.observeSession is not a function`
    即会话列表/历史/恢复/fork 全部降级或失败（issue #1）。
+
+   > **0.2.0 起多了一道硬门禁**：宿主的 `@deepseek-ai/dsh-app-boot` 在**安装与启动前**用 `evaluatePluginCompatibility()` 逐个校验 `@deepseek-ai/dsh*` peer 是否满足运行时版本，不满足就拒绝加载整棵树，报
+   > `Plugin dsh-memory-bundle@0.1.0 is incompatible with DSH 0.2.0-rc.2`（issue #3）。
+   > 注意 semver 规则：`^0.1.5-rc.3` = `>=0.1.5-rc.3 <0.2.0`，**不含 0.2.0**；因此必须写成 `>=0.1.5-rc.3 <0.3.0`。上界停在 `<0.3.0` 是有意的——只有 0.1.5-rc.3 与 0.2.0-rc.2 实际跑过，0.3.0 应该**报错让人来验证**。
 2. **会话与持久化的方法集按代适配**，不要假设单一写法：
 
-| 依赖 | 老一代（0.1.0 / 0.1.1） | 当前代（0.1.3+，含 0.1.5-rc.3） | 本包处理 |
+| 依赖 | 老一代（0.1.0 / 0.1.1） | 当前代（0.1.3+ / 0.2.x，含 0.1.5-rc.3、0.2.0-rc.2） | 本包处理 |
 |---|---|---|---|
 | 活会话日志 | `session.events` getter | `session.snapshotEvents()`（另有 `inheritedEventCount`、`seq`） | `sessionEvents()` 两者都认，都不认则**显式报错**（不再退化成"0 命中"） |
 | 持久化列举 | `persistence.listSnapshots()` | `persistence.list({ signal })` | `listPersistedSnapshots()` 两者都认 |
@@ -86,3 +90,15 @@ node --test test/cjk.test.js
 - **继承宿主 `observeSession` 契约**：直接断言 `CjkSessionQueryEngine.prototype.observeSession` 是函数，并对一个真实形态的活会话完成一次完整 observation（宿主 `dsh-api-session-controller` 的入口）。
 - **活会话契约**：stub 只提供 `header` + `snapshotEvents()`（无 `events` 数组），检索仍须命中——旧测试手工构造 `{ header, events }`，用测试假设替代了真机契约，因此漏掉了这个 bug。
 - **两代持久化 API**：`list()`/`open()`/`read()` 与 `listSnapshots()`/`inspect()` 各一个 stub，都必须能检索到只剩持久化记录的会话。
+
+### 跨版本交叉验证
+
+这套测试跑通过三代真实依赖，不是只对着一个版本写的：
+
+| 依赖来源 | 结果 |
+|---|---|
+| 仓库 devDeps `@deepseek-ai/dsh-session-query@0.1.5-rc.3` | ✅ 16/16 |
+| 仓库 devDeps 升到 `0.2.0-rc.2`（cordis 4.0.4） | ✅ 16/16 |
+| 真实 0.2.0-rc.2 依赖树（独立安装的 `dsh-session` / `dsh-session-query` / `dsh-session-persistence`） | ✅ 16/16 |
+
+宿主侧门禁也单独验证过：用**本机真实安装的** `@deepseek-ai/dsh-app-boot@0.2.0-rc.2` 里的 `evaluatePluginCompatibility()` 逐个跑本仓 8 个包的 `package.json`，全部 PASS（此前 `^0.1.5-rc.3` 会被判 REJECT，即 issue #3）。

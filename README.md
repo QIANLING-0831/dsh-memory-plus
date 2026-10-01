@@ -206,7 +206,12 @@ corepack pnpm test        # 69 个单测（node --test，7 个包：CJK 16 / cor
 
 ## 8. 发布状态
 
-- **尚未发布到 npm**。`.github/workflows/publish.yml`（tag 触发 + OIDC Trusted Publishing，无长期令牌）已就绪，但需先在 npm 侧为各包配置 Trusted Publisher 后才能生效；在此之前请以 Git 方式安装。
+- **尚未发布到 npm，请以 Git 方式安装**（上面的安装章节）。截至 2026-09-30 实测：`dsh-memory-bundle` 在 npmjs.org 上不可用（2026-09-15 被 unpublish，当前 name owner 是另一个 npm 账号），其余 7 个包从未发布过。
+- `.github/workflows/publish.yml` 是 tag 触发（`v*`）的发布流水线，**目前会在“Publish packages”这一步失败**——因为仓库里既没有 `NPM_TOKEN` secret，npm 侧也没为各包配置 Trusted Publisher。v0.1.0 与 v0.2.0 两次 tag 都是同一原因（红叉是预期状态，不影响任何人的 git 安装）。
+- 要打通发布链路，二选一：
+  1. **Trusted Publishing（推荐，无长期令牌）**：先在本地用有权限的账号手动 `pnpm -r publish --access public` 建出各包，再到 npmjs.org 每个包的 Settings → Trusted Publishers 添加本仓库 + workflow 名 `publish`；
+  2. **令牌**：在仓库 Secrets 添加 `NPM_TOKEN`（granular token，需 publish 权限），`publish.yml` 会自动使用。
+- 流水线现在带两道自检：发布前先确认存在可用凭证（否则**明确报错**而不是含糊失败），发布后逐个 `npm view` 校验每个包的版本真的上了 registry（`pnpm -r publish` 对“版本已存在”会报成功但实际没上传）。
 - deepseek-ai/deepseek-harness 官方仓库暂不接受外部 PR，本仓库以独立插件生态方式贡献；上游 `unicode61` 中文检索缺陷可在官方 Discussions 反馈。
 
 ---

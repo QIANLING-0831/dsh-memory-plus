@@ -9,6 +9,19 @@ on:
 # workflow to registry.npmjs.org. Requires the npm account to add this repo +
 # workflow name ("publish") as a Trusted Publisher under Account Settings →
 # Trusted Publishers → Add new publisher.
+#
+# Deployment is NOT configured yet (checked 2026-09-30): no repository secrets
+# or variables exist, and the v0.1.0 run failed at the same step. Until either
+# path below is set up, this job fails by design — the failure is recorded here
+# as repo hygiene, not as a blocker. Users install from the git checkout, which
+# never touches npm.
+#
+# Two ways to make it publish:
+#   1. Trusted Publishing: add this repo + workflow "publish" as a Trusted
+#      Publisher for every package on npm. Needs each package to exist on npm
+#      first, so publish the first version manually.
+#   2. Token: add a granular npm token as the repository secret NPM_TOKEN; the
+#      step below picks it up automatically.
 permissions:
   contents: read
   id-token: write
@@ -24,8 +37,52 @@ jobs:
           registry-url: https://registry.npmjs.org/
       - run: corepack enable
       - run: pnpm install --no-frozen-lockfile
+
+      # Fail early, with the real reason, when the step cannot possibly succeed.
+      # Without this guard the job dies inside `pnpm -r publish` with whatever
+      # npm says first, which is how the earlier runs read as an unexplained red X.
+      - name: Check publish credentials
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -n "$NPM_TOKEN" ]; then
+            echo "auth: NPM_TOKEN secret is set"
+          elif [ -n "$ACTIONS_ID_TOKEN_REQUEST_URL" ]; then
+            echo "auth: no NPM_TOKEN; relying on Trusted Publishing (OIDC)."
+            echo "      This only works when every package lists this repo + the"
+            echo "      'publish' workflow as a Trusted Publisher on npm."
+          else
+            echo "::error::No npm credentials are available: set the repository secret NPM_TOKEN, or configure Trusted Publishing on npm."
+            exit 1
+          fi
+
       # Publishes every non-private package in the workspace (root is private)
       # with provenance attestation. `--no-git-checks` because per-package tags
       # are not maintained in this monorepo layout.
-      - name: Publish packages with Trusted Publishing
+      - name: Publish packages
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: pnpm -r publish --no-git-checks --access public --provenance
+
+      # A publish is only real once the registry serves it. `pnpm -r` reports
+      # success per package even when a package was already at that version and
+      # nothing was uploaded, so the tag's promise is verified explicitly.
+      - name: Verify every published version is on npm
+        run: |
+          missing=""
+          for pkg in $(ls packages); do
+            manifest="packages/$pkg/package.json"
+            [ -f "$manifest" ] || continue
+            name=$(node -p "require('./$manifest').name")
+            version=$(node -p "require('./$manifest').version")
+            if npm view "$name@$version" version >/dev/null 2>&1; then
+              echo "ok       $name@$version"
+            else
+              echo "MISSING  $name@$version"
+              missing="$missing $name@$version"
+            fi
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::These versions are not on npm after publishing:$missing"
+            exit 1
+          fi

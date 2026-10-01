@@ -37,7 +37,7 @@
   "peerDependencies": {
     "@deepseek-ai/dsh-tools": ">=0.1.5-rc.3 <0.3.0",
     "@deepseek-ai/cordis": "^4.0.1",
-    "dsh-memory-index": "workspace:*"
+    "dsh-memory-index": ">=0.1.0 <0.2.0"
   },
   "dependencies": {
     "@deepseek-ai/schemastery": "^3.18.1"

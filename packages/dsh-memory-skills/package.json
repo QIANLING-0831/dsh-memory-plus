@@ -1,7 +1,7 @@
 {
   "name": "dsh-memory-skills",
-  "description": "Skill manager + background self-evolution for DeepSeek Harness — model-facing skill_write/delete/list tools persist DSH-native skill files, and a timer-driven reflection loop distills reusable skills from finished agent turns (background, KV-free, logged).",
-  "version": "0.1.0",
+  "description": "Skill manager + background self-evolution for DeepSeek Harness — model-facing skill_write/delete/list tools persist DSH-native skill files with provenance (metadata.source/pinned), a timer-driven reflection loop distills reusable skills from finished turns (background, KV-free, logged), and skills the user wrote by hand or pinned via /skill-pin are refused to every model-side write.",
+  "version": "0.2.0",
   "publishConfig": {
     "access": "public"
   },

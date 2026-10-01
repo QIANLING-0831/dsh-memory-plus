@@ -11,17 +11,17 @@
 
 **一句话定位**：唯一在修 DSH 记忆地基（CJK 全文检索）+ 唯一做 Token 去重 + 唯一有 KV-safe 注入论证 + **已补齐技能自我进化**的**记忆全家桶**——不是"又一个记忆插件"。
 
-### 全家桶组成（8 包 / 69 单测）
+### 全家桶组成（8 包 / 86 单测）
 
 | 包 | 功能 | 生态唯一性 |
 |---|---|---|
 | **dsh-session-query-sqlite-cjk** | 中文可用的 `sessionQuery` 后端：trigram 双表 + 1–2 字中文 **LIKE 回退**（三级路由） | ✅ **生态唯一修 CJK 检索** |
 | **dsh-tool-result-dedup** | 工具结果哈希去重（git status / ls / 重复 read → 指针），纯省输入 Token | ✅ 少有人做 |
-| **dsh-memory-skills** | **技能管理器 + 后台自我进化**：`skill_write/delete/list` 写 DSH 原生技能文件；定时反思蒸馏可复用技能（Hermes 式学习循环，后台、KV-free） | ✅ 自进化已有 evolve（205⭐）先例，但本包与全家桶其他包形成完整地基 |
+| **dsh-memory-skills** | **技能管理器 + 后台自我进化**：`skill_write/delete/list` 写 DSH 原生技能文件；定时反思蒸馏可复用技能（Hermes 式学习循环，后台、KV-free）；**provenance + `/skill-pin` 固定层，模型改不动用户技能** | ✅ 自进化已有 evolve（205⭐）先例；**"模型永远写不到"的来源守卫在本生态尚无先例** |
 | **dsh-memory-index** | sqlite-vec 向量臂 + FTS5 词法臂 → **RRF 融合**；事件级增量嵌入；文件词条标签+过滤 | 混合检索（与多家重叠） |
 | **dsh-memory-tool** | 模型可调用的 `memory_search`：会话旧内容混合召回，输出严格有界 | 与 dsh-memo 等重叠 |
 | **dsh-compaction-locator** | 近无损压缩：每个 `<compacted-summary>` 追加 **Exact Sources 定位符**（spill 路径/文件/seq 区间） | 与 StrataGate 思路接近但独立实现 |
-| **dsh-memory-core** | 跨会话核心记忆：workspace 事实库 + **KV-safe 稳定 section 注入** + `memory_remember` | ✅ 注入纪律唯一有源码级论证 |
+| **dsh-memory-core** | 跨会话核心记忆：workspace 事实库 + **KV-safe 稳定 section 注入** + `memory_remember` + **用户固定 `[pinned]` 层与 `/memory-pin`** | ✅ 注入纪律唯一有源码级论证 |
 | **dsh-memory-bundle** | 元 bundle：一键安装全家桶，自动禁用 base 冲突行 | — |
 
 ### 为什么值得先看：4 个"别人没有"
@@ -31,10 +31,11 @@
 3. **Token 去重**——`dsh-tool-result-dedup` 从输入侧省 Token，与记忆检索正交，生态少见。
 4. **KV-safe 稳定注入**——基于源码级验证（`buildRequest` deepFreeze / KV 前缀缓存失效 / 持久化日志污染）得出的注入纪律；多数"每步自动注入"型插件会踩同一道墙（如 dsh-layered-memory）。
 5. **compaction 来源定位**——近无损压缩 + 每条摘要可溯源到 spill 文件/seq 区间，记忆可审计。
+6. **用户专属层（模型写不到）**——技能与常驻记忆都带 provenance；手写文件与 `/skill-pin` `/memory-pin` 固定的内容，模型工具与后台进化一律拒绝改写，拒绝进审计日志。两道墙：插件守卫 + DSH 文件沙箱（默认 `$DSH_HOME/skills` 在 workspace 之外，通用 `write`/`edit` 够不到）。设计与真机实测见 [`docs/PROVENANCE-AND-PIN.md`](PROVENANCE-AND-PIN.md)。
 
 ### 验证与测试
 
-- **69 单测**（7 包，node --test）：CJK 检索 16、core 12、技能管理器/进化 10、混合检索 8、tool 8、compaction 8、去重 7；
+- **86 单测**（7 包，node --test）：CJK 检索 16、core 19、技能管理器/进化 20、混合检索 8、tool 8、compaction 8、去重 7；
 - **宿主版本要求**：DSH `>=0.1.5-rc.3 <0.3.0`（cordis `^4.0.1`），已在 0.1.5-rc.3 与 **0.2.0-rc.2** 上验证。CJK 后端是上游 `SessionQueryEngine` 的继承子类，peer 必须与宿主解析成同一份，否则宿主会拿到缺 `observeSession()` 的 `ctx.sessionQuery`（issue #1，已修）；0.2.0 起宿主还有 install/boot 前的 peer 门禁，声明范围不匹配会拒绝加载整棵树（issue #3，已修）；
 - 真机验证报告（独立测试 profile，`docs/VERIFICATION.md`）：整树启动、`memory_search` 中文命中真实会话、跨会话持久化逐字注入，附录 A 为宿主契约修复的复现与验证；
 - CJK 实测对照表（unicode61 vs trigram vs LIKE 回退）见 `packages/dsh-session-query-sqlite-cjk/README.md`。
@@ -100,8 +101,9 @@
 | 长期向量记忆（历史混合检索） | 🔴 红海（10+ 家，含本仓库 memory-index） |
 | 用户记忆自动蒸馏（facts/preferences） | 🔴 dsh-layered-memory / dsh-auto-memory / FuRongJun / dsh-engram |
 | **Skills 自进化 / 学习循环** | 🔴 dsh-memory-evolve（205⭐）已完整实现；**本仓库 dsh-memory-skills（新增）以"技能管理器 + 后台反思蒸馏"形态补齐同一能力** |
+| **永久置顶内容结构性排除在模型写入路径之外**（Hermes `/memory-pin` 做法） | 🔴 生态未见同类实现；**本仓库本轮补齐**：技能侧 provenance + `/skill-pin`，记忆侧 `[pinned]` + `/memory-pin`（见 [`docs/PROVENANCE-AND-PIN.md`](PROVENANCE-AND-PIN.md)） |
 
-**结论**：Hermes 式自进化不再是别人的专利——`dsh-memory-skills` 已并入本仓库全家桶（与 evolve 定位互补：evolve 是五轨大而全的单体，本包是小而聚焦的技能管理器 + 后台进化）。**本仓库的完整差异化 = CJK 检索（生态唯一）+ Token 去重 + KV-safe 注入 + compaction 定位 + 技能自我进化**。
+**结论**：Hermes 式自进化不再是别人的专利——`dsh-memory-skills` 已并入本仓库全家桶（与 evolve 定位互补：evolve 是五轨大而全的单体，本包是小而聚焦的技能管理器 + 后台进化）。**本仓库的完整差异化 = CJK 检索（生态唯一）+ Token 去重 + KV-safe 注入 + compaction 定位 + 技能自我进化 + 模型写不到的用户专属层**。
 
 ---
 

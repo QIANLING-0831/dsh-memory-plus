@@ -21,11 +21,33 @@ import { DatabaseSync } from "node:sqlite";
 * with hash dedup and optional char-overlap similarity merge. Auto-extraction
 * from conversation is deliberately deferred (LLM cost + noise risk).
 *
+* **The user's layer.** Because this section sits at the top of every request,
+* a fact written here is a standing instruction — exactly the content a model
+* must not be able to author for itself. Two rules make that structural rather
+* than advisory:
+*
+* 1. `memory_remember` has no `pinned` parameter, and `remember()` only honors
+*    `pinned` for the `human` actor, which only the slash commands pass. A
+*    model cannot create a pinned fact at all.
+* 2. Tool writes never modify a row that the user authored (`source: human`) or
+*    pinned: an exact-hash collision is acknowledged without changing content,
+*    and similarity merges skip those rows entirely. Removing one requires the
+*    `human` actor (`/memory-unpin`).
+*
 * @module dsh-memory-core
 */
 const CORE_APPLICATION_ID = 1146308692;
-const CORE_SCHEMA_VERSION = 1;
-const DEFAULT_TOPICS = ["preference", "convention", "environment", "decision", "general"];
+const CORE_SCHEMA_VERSION = 2;
+/** Fact categories offered to the model (`lesson`/`correction`: what went wrong). */
+const DEFAULT_TOPICS = [
+	"preference",
+	"convention",
+	"environment",
+	"decision",
+	"lesson",
+	"correction",
+	"general"
+];
 /** Resolve and validate config with defaults. */
 function resolveConfig(config) {
 	const resolved = {
@@ -50,12 +72,27 @@ function ensureSchema(db) {
       content      TEXT NOT NULL,
       content_hash TEXT NOT NULL,
       confidence   REAL NOT NULL,
+      pinned       INTEGER NOT NULL DEFAULT 0,
+      source       TEXT NOT NULL DEFAULT 'model',
       created_at   INTEGER NOT NULL,
       updated_at   INTEGER NOT NULL
     ) STRICT
   `);
 	db.exec("CREATE INDEX IF NOT EXISTS idx_core_facts_workspace ON core_facts (workspace, updated_at DESC)");
 	db.exec(`PRAGMA user_version = ${CORE_SCHEMA_VERSION}`);
+}
+/**
+* Migrate an existing derived database in place. Additive only — the user's
+* facts are the one thing in this package that cannot be regenerated, so a
+* schema bump must never drop the table (v1 → v2 adds `pinned` and `source`).
+* @returns whether the database predates the current schema version.
+*/
+function migrateSchema(db, version) {
+	if (version >= CORE_SCHEMA_VERSION) return false;
+	const columns = db.prepare("PRAGMA table_info(core_facts)").all().map((row) => row.name);
+	if (!columns.includes("pinned")) db.exec("ALTER TABLE core_facts ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0");
+	if (!columns.includes("source")) db.exec("ALTER TABLE core_facts ADD COLUMN source TEXT NOT NULL DEFAULT 'model'");
+	return true;
 }
 /** Normalize content for hashing and merge comparison. */
 export function normalizeContent(content) {
@@ -81,6 +118,10 @@ function buckets(text) {
 	for (const ch of text) map.set(ch, (map.get(ch) ?? 0) + 1);
 	return map;
 }
+/** Rows a model-side actor must never rewrite or remove. */
+function isUserAuthored(row) {
+	return row.pinned === 1 || row.source === "human";
+}
 /**
 * The cross-session core memory service.
 * @extends Service
@@ -101,6 +142,8 @@ export class MemoryCoreEngine extends Service {
 	_db;
 	/** workspace → rendered block (invalidated on every write). */
 	_blockCache = /* @__PURE__ */ new Map();
+	/** Whether this open upgraded an older on-disk schema in place. */
+	migrated = false;
 	constructor(ctx, config) {
 		super(ctx, "memoryCore");
 		this.config = resolveConfig(config);
@@ -112,7 +155,7 @@ export class MemoryCoreEngine extends Service {
 			// Stable KV-safe injection: the block changes only when facts change.
 			ctx.systemPrompt.section({
 				name: "memory-core",
-				order: config.sectionOrder,
+				order: this.config.sectionOrder,
 				text: (context) => this.renderFor(context)
 			});
 		}
@@ -127,11 +170,10 @@ export class MemoryCoreEngine extends Service {
 			const { user_version: version } = db.prepare("PRAGMA user_version").get();
 			if (applicationId !== 0 && applicationId !== CORE_APPLICATION_ID) throw new Error(`dsh-memory-core: database at "${actual}" belongs to another application`);
 			if (applicationId === 0 && db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT GLOB 'sqlite_*'").all().length > 0) throw new Error(`dsh-memory-core: database at "${actual}" is not an empty or recognized derived index`);
-			if (applicationId === CORE_APPLICATION_ID && version !== CORE_SCHEMA_VERSION) {
-				db.exec("DROP TABLE IF EXISTS core_facts");
-				db.exec("PRAGMA user_version = 0");
-			}
+			if (applicationId === CORE_APPLICATION_ID && version > CORE_SCHEMA_VERSION) throw new Error(`dsh-memory-core: database at "${actual}" was written by a newer release (schema ${version} > ${CORE_SCHEMA_VERSION})`);
+			const migrated = applicationId === CORE_APPLICATION_ID ? migrateSchema(db, version) : false;
 			ensureSchema(db);
+			this.migrated = migrated;
 			return db;
 		} catch (error) {
 			db.close();
@@ -142,11 +184,20 @@ export class MemoryCoreEngine extends Service {
 	* Remember a fact for a workspace. Dedupes by normalized content hash; when
 	* a similar existing fact (same workspace, overlap ≥ threshold) exists, the
 	* new content replaces it (merge-update, Mem0-style).
+	*
+	* User-authored rows are outside that path: see the module note. A model
+	* write that collides with one is acknowledged with `changed: false` and the
+	* stored content is left exactly as the user wrote it.
+	*
 	* @param input - `{ workspace, content, topic?, confidence? }`.
-	* @returns `{ factId, merged }`.
+	* @param options - `{ actor?: "model" | "human", pinned?: boolean }`;
+	*   `pinned` is honored only for the `human` actor.
+	* @returns `{ factId, merged, pinned, changed }`.
 	*/
-	async remember(input) {
+	async remember(input, options = {}) {
 		const db = this._db;
+		const actor = options.actor === "human" ? "human" : "model";
+		const pinned = actor === "human" && options.pinned === true;
 		const workspace = input.workspace ?? "";
 		const topic = DEFAULT_TOPICS.includes(input.topic) ? input.topic : "general";
 		const content = normalizeContent(input.content);
@@ -154,39 +205,89 @@ export class MemoryCoreEngine extends Service {
 		const confidence = typeof input.confidence === "number" ? Math.min(1, Math.max(0, input.confidence)) : 0.7;
 		const hash = createHash("sha256").update(content, "utf8").digest("hex");
 		const now = Date.now();
-		const exact = db.prepare("SELECT fact_id FROM core_facts WHERE workspace = ? AND content_hash = ?").get(workspace, hash);
+		const exact = db.prepare("SELECT fact_id, pinned, source FROM core_facts WHERE workspace = ? AND content_hash = ?").get(workspace, hash);
 		if (exact !== void 0) {
-			db.prepare("UPDATE core_facts SET updated_at = ?, confidence = ? WHERE fact_id = ?").run(now, Math.max(confidence, 0.7), exact.fact_id);
+			if (actor !== "human" && isUserAuthored(exact)) return {
+				factId: exact.fact_id,
+				merged: true,
+				pinned: exact.pinned === 1,
+				changed: false
+			};
+			db.prepare("UPDATE core_facts SET updated_at = ?, confidence = ?, pinned = ?, source = ? WHERE fact_id = ?")
+				.run(now, Math.max(confidence, 0.7), pinned ? 1 : exact.pinned, pinned ? "human" : exact.source, exact.fact_id);
 			this._blockCache.delete(workspace);
-			return { factId: exact.fact_id, merged: true };
+			return {
+				factId: exact.fact_id,
+				merged: true,
+				pinned: pinned || exact.pinned === 1,
+				changed: true
+			};
 		}
-		const candidates = db.prepare("SELECT fact_id, content FROM core_facts WHERE workspace = ?").all(workspace);
-		for (const candidate of candidates) {
-			if (overlapSimilarity(candidate.content, content) >= this.config.similarityThreshold) {
-				db.prepare("UPDATE core_facts SET content = ?, content_hash = ?, confidence = ?, updated_at = ? WHERE fact_id = ?")
-					.run(content, hash, confidence, now, candidate.fact_id);
-				this._blockCache.delete(workspace);
-				return { factId: candidate.fact_id, merged: true };
+		if (!pinned) {
+			const candidates = db.prepare("SELECT fact_id, content FROM core_facts WHERE workspace = ? AND pinned = 0 AND source != 'human'").all(workspace);
+			for (const candidate of candidates) {
+				if (overlapSimilarity(candidate.content, content) >= this.config.similarityThreshold) {
+					db.prepare("UPDATE core_facts SET content = ?, content_hash = ?, confidence = ?, updated_at = ? WHERE fact_id = ?")
+						.run(content, hash, confidence, now, candidate.fact_id);
+					this._blockCache.delete(workspace);
+					return {
+						factId: candidate.fact_id,
+						merged: true,
+						pinned: false,
+						changed: true
+					};
+				}
 			}
 		}
 		const factId = randomUUID();
-		db.prepare("INSERT INTO core_facts (fact_id, workspace, topic, content, content_hash, confidence, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
-			.run(factId, workspace, topic, content, hash, confidence, now, now);
+		db.prepare("INSERT INTO core_facts (fact_id, workspace, topic, content, content_hash, confidence, pinned, source, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+			.run(factId, workspace, topic, content, hash, confidence, pinned ? 1 : 0, pinned ? "human" : "model", now, now);
 		this._blockCache.delete(workspace);
-		return { factId, merged: false };
+		return {
+			factId,
+			merged: false,
+			pinned,
+			changed: true
+		};
 	}
-	/** List facts for a workspace, newest first. */
+	/** List facts for a workspace, user-authored rows first, then newest. */
 	list(workspace, limit = 100) {
 		if (this._db === void 0) return [];
-		return this._db.prepare("SELECT fact_id, workspace, topic, content, confidence, created_at, updated_at FROM core_facts WHERE workspace = ? ORDER BY updated_at DESC LIMIT ?").all(workspace, limit);
+		return this._db.prepare("SELECT fact_id, workspace, topic, content, confidence, pinned, source, created_at, updated_at FROM core_facts WHERE workspace = ? ORDER BY pinned DESC, updated_at DESC LIMIT ?").all(workspace, limit);
 	}
-	/** Delete a fact by id. */
-	async forget(factId) {
-		const row = this._db.prepare("SELECT workspace FROM core_facts WHERE fact_id = ?").get(factId);
+	/** Delete a fact by id. Model-side actors cannot remove a user-authored fact. */
+	async forget(factId, options = {}) {
+		const actor = options.actor === "human" ? "human" : "model";
+		const row = this._db.prepare("SELECT workspace, pinned, source FROM core_facts WHERE fact_id = ?").get(factId);
 		if (row === void 0) return false;
+		if (actor !== "human" && isUserAuthored(row)) throw new Error(`dsh-memory-core: fact ${factId} was written by the user; only the user can remove it`);
 		this._db.prepare("DELETE FROM core_facts WHERE fact_id = ?").run(factId);
 		this._blockCache.delete(row.workspace);
 		return true;
+	}
+	/** Human surface: store a standing instruction the model can never rewrite. */
+	async pin(input) {
+		return this.remember(input, {
+			actor: "human",
+			pinned: true
+		});
+	}
+	/**
+	* Human surface: remove a user-authored fact by exact id or content substring.
+	* @returns `{ removed, factId? }`.
+	*/
+	async unpin({ workspace, key }) {
+		const needle = String(key ?? "").trim();
+		if (needle.length === 0) return { removed: false };
+		const byExactId = this._db.prepare("SELECT fact_id FROM core_facts WHERE workspace = ? AND fact_id = ? AND (pinned = 1 OR source = 'human')").get(workspace, needle);
+		const row = byExactId ?? this._db.prepare("SELECT fact_id FROM core_facts WHERE workspace = ? AND (pinned = 1 OR source = 'human') AND content LIKE ? ORDER BY updated_at DESC LIMIT 1").get(workspace, `%${needle}%`);
+		if (row === void 0) return { removed: false };
+		this._db.prepare("DELETE FROM core_facts WHERE fact_id = ?").run(row.fact_id);
+		this._blockCache.delete(workspace);
+		return {
+			removed: true,
+			factId: row.fact_id
+		};
 	}
 	/** Render the stable Markdown block for a workspace (empty when no facts). */
 	renderBlock(workspace) {
@@ -197,8 +298,9 @@ export class MemoryCoreEngine extends Service {
 		if (facts.length === 0) {
 			block = "";
 		} else {
-			const lines = facts.map((fact) => `- [${fact.topic}] ${fact.content}`);
-			block = `## Persistent Memory (workspace: ${workspace || "(root)"})\n${lines.join("\n")}`;
+			const hasUserRows = facts.some((fact) => isUserAuthored(fact));
+			const lines = facts.map((fact) => `- ${isUserAuthored(fact) ? "[pinned] " : ""}[${fact.topic}] ${fact.content}`);
+			block = `## Persistent Memory (workspace: ${workspace || "(root)"})${hasUserRows ? "\nEntries marked [pinned] were written by the user and cannot be changed by any tool." : ""}\n${lines.join("\n")}`;
 		}
 		this._blockCache.set(workspace, block);
 		return block;
@@ -221,7 +323,7 @@ export class MemoryCoreEngine extends Service {
 export function createRememberTool(ctx, config) {
 	return defineTool({
 		name: "memory_remember",
-		description: "Store a persistent cross-session memory fact for the current workspace (user preference, project convention, environment fact, decision). Facts appear at the top of every request in this workspace, so keep them short, durable, and general. A similar existing fact is updated instead of duplicated.",
+		description: "Store a persistent cross-session memory fact for the current workspace (user preference, project convention, environment fact, decision, or a lesson/correction from a mistake). Facts appear at the top of every request in this workspace, so keep them short, durable, and general. A similar existing fact is updated instead of duplicated; facts the user pinned or wrote themselves are never modified by this tool.",
 		parameters: {
 			content: {
 				type: "string",
@@ -231,7 +333,7 @@ export function createRememberTool(ctx, config) {
 			topic: {
 				type: "string",
 				enum: DEFAULT_TOPICS,
-				description: "Fact category. Default: general."
+				description: "Fact category (use lesson/correction for what went wrong). Default: general."
 			}
 		},
 		output: {
@@ -243,13 +345,139 @@ export function createRememberTool(ctx, config) {
 			const core = ctx.get("memoryCore");
 			if (!core) return "memory_remember: memory-core service not loaded.";
 			try {
-				const { factId, merged } = await core.remember({ workspace, content: String(args.content ?? ""), topic: args.topic });
+				const { factId, merged, changed } = await core.remember({
+					workspace,
+					content: String(args.content ?? ""),
+					topic: args.topic
+				}, { actor: "model" });
+				if (changed === false) return `该内容与用户已固定的记忆一致，未改动任何记忆 (${factId})。`;
 				return merged ? `已更新既有记忆 (${factId})。` : `已记住 (${factId})。`;
 			} catch (error) {
 				ctx.logger?.warn(`memory_remember failed: ${String(error)}`);
 				return "memory_remember: failed to store the fact; try again later.";
 			}
 		}
+	});
+}
+/** Short id prefix for command output. */
+function shortId(factId) {
+	return String(factId).slice(0, 8);
+}
+/** Format one fact for `/memory-list`. */
+function formatFactLine(fact) {
+	return `- ${isUserAuthored(fact) ? "[pinned] " : ""}[${fact.topic}] ${fact.content}  (id: ${shortId(fact.fact_id)})`;
+}
+/**
+* Register the human-only memory commands.
+*
+* `@deepseek-ai/dsh-commands` is an interactive-UI service: a slash line runs
+* its handler against the agent and is never submitted to the model, and no
+* model-facing tool can dispatch one. `/memory-pin` therefore writes the
+* standing-instruction layer through a path the model cannot reach — the same
+* shape Hermes uses for its own `/memory-pin`. The service is optional
+* (headless profiles have no command adapter), so it is awaited through
+* `ctx.inject` instead of a static dependency.
+*/
+export function registerMemoryCommands(ctx) {
+	if (typeof ctx.inject !== "function") return;
+	ctx.inject(["commands"], (commandCtx) => {
+		const engineOf = () => commandCtx.get("memoryCore");
+		const workspaceOf = (agent) => agent?.session?.header?.cwd ?? "";
+		commandCtx.commands.register({
+			name: "memory-pin",
+			description: "固定一条常驻记忆（每次请求都会注入，模型不能改写或删除它）",
+			input: { hint: "[topic] <text>" },
+			handler: async ({ rawInput, agent }) => {
+				const engine = engineOf();
+				if (!engine) return {
+					kind: "error",
+					text: "memory-core 服务未加载。"
+				};
+				const trimmed = String(rawInput ?? "").trim();
+				if (trimmed.length === 0) return {
+					kind: "error",
+					text: "用法：/memory-pin [topic] <text>；topic 可选 one of: " + DEFAULT_TOPICS.join(", ")
+				};
+				const parts = trimmed.split(/\s+/);
+				const topic = DEFAULT_TOPICS.includes(parts[0]) ? parts.shift() : "general";
+				const content = parts.join(" ");
+				if (content.length === 0) return {
+					kind: "error",
+					text: "用法：/memory-pin [topic] <text>"
+				};
+				try {
+					const result = await engine.pin({
+						workspace: workspaceOf(agent),
+						content,
+						topic
+					});
+					return {
+						kind: "success",
+						text: `${result.changed ? "已固定" : "已存在同内容的固定记忆"} [${topic}] ${content} (id: ${shortId(result.factId)})`
+					};
+				} catch (error) {
+					return {
+						kind: "error",
+						text: `操作失败：${String(error)}`
+					};
+				}
+			}
+		});
+		commandCtx.commands.register({
+			name: "memory-unpin",
+			description: "移除一条由你写入/固定的记忆（模型不能删除这类记忆）",
+			input: { hint: "<fact-id | text>" },
+			handler: async ({ rawInput, agent }) => {
+				const engine = engineOf();
+				if (!engine) return {
+					kind: "error",
+					text: "memory-core 服务未加载。"
+				};
+				const key = String(rawInput ?? "").trim();
+				if (key.length === 0) return {
+					kind: "error",
+					text: "用法：/memory-unpin <fact-id | text>"
+				};
+				try {
+					const result = await engine.unpin({
+						workspace: workspaceOf(agent),
+						key
+					});
+					return result.removed ? {
+						kind: "success",
+						text: `已移除固定记忆 (id: ${shortId(result.factId)})。`
+					} : {
+						kind: "error",
+						text: `没有匹配到你写入/固定的记忆："${key}"。用 /memory-list 查看。`
+					};
+				} catch (error) {
+					return {
+						kind: "error",
+						text: `操作失败：${String(error)}`
+					};
+				}
+			}
+		});
+		commandCtx.commands.register({
+			name: "memory-list",
+			description: "列出本工作区的常驻记忆（固定在前的标 [pinned]）",
+			handler: ({ agent }) => {
+				const engine = engineOf();
+				if (!engine) return {
+					kind: "error",
+					text: "memory-core 服务未加载。"
+				};
+				const facts = engine.list(workspaceOf(agent));
+				if (facts.length === 0) return {
+					kind: "success",
+					text: "本工作区还没有常驻记忆。"
+				};
+				return {
+					kind: "success",
+					text: facts.map(formatFactLine).join("\n")
+				};
+			}
+		});
 	});
 }
 const name = "memory-core";
@@ -263,6 +491,7 @@ const Config = MemoryCoreEngine.Config;
 function apply(ctx, config) {
 	ctx.plugin(MemoryCoreEngine, config);
 	ctx.tools.register(createRememberTool(ctx, config));
+	registerMemoryCommands(ctx);
 }
 //#endregion
-export { Config, apply, inject, name };
+export { CORE_APPLICATION_ID, CORE_SCHEMA_VERSION, Config, DEFAULT_TOPICS, apply, inject, name };

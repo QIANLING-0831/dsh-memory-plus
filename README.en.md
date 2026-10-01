@@ -1,6 +1,6 @@
 # dsh-memory
 
-A community plugin suite (`dsh-plugin`) that makes DeepSeek Harness (DSH) memory actually work: CJK-capable full-text session search, tool-result dedup, hybrid memory retrieval, cross-session core memory, near-lossless compaction, and a **skill manager with background self-evolution**. Phases 0–3 are implemented (0–2 integration-verified on a real harness; Phase 3 verification steps in [`docs/VERIFICATION.md`](docs/VERIFICATION.md)); 69 unit tests pass.
+A community plugin suite (`dsh-plugin`) that makes DeepSeek Harness (DSH) memory actually work: CJK-capable full-text session search, tool-result dedup, hybrid memory retrieval, cross-session core memory, near-lossless compaction, a **skill manager with background self-evolution**, and a **provenance-audited user layer the model cannot write**. Phases 0–3 are implemented and integration-verified on a real harness; 86 unit tests pass.
 
 > **Host requirement: DSH `>=0.1.5-rc.3 <0.3.0` (cordis `^4.0.1`), verified on 0.1.5-rc.3 and 0.2.0-rc.2.** `ctx.sessionQuery` is provided by this repo's CJK plugin as a **subclass** of upstream `SessionQueryEngine`, so it must resolve the *same* `@deepseek-ai/dsh-session-query` copy as the host — otherwise the host gets a service instance without `observeSession()`. See [issue #1](https://github.com/QIANLING-0831/dsh-memory-plus/issues/1) and the "host version contract" section of `packages/dsh-session-query-sqlite-cjk/README.md`.
 
@@ -14,9 +14,11 @@ This repository is a **memory family bundle that fixes the foundation**:
 
 1. **CJK search fix (unique in the ecosystem)** — trigram dual tables + a 1–2 char LIKE fallback; every memory plugin benefits (measured: 0 hits upstream → full hits with this bundle).
 2. **Skill self-evolution** — `skill_write/delete/list` plus a background reflection loop that distills reusable skills from finished turns (Hermes-style learning loop, zero request-path overhead).
-3. **Token dedup** — hash-dedup of repeated tool results, saving input tokens.
-4. **KV-safe stable injection** — injection discipline derived from source-level findings (`buildRequest` deepFreeze / KV prefix-cache invalidation / persistent-log pollution).
-5. **Compaction provenance** — near-lossless summaries with exact source locators (spill path / file / seq range).
+3. **A user layer the model cannot write** — skills and standing memories carry **provenance**; hand-written files and anything pinned with `/skill-pin` or `/memory-pin` are refused to model tools and to the background loop, and every refusal is written to an audit log.
+4. **A topic for mistakes** — `lesson` and `correction` are first-class fact topics, so "what went wrong" is not buried in `general`.
+5. **Token dedup** — hash-dedup of repeated tool results, saving input tokens.
+6. **KV-safe stable injection** — injection discipline derived from source-level findings (`buildRequest` deepFreeze / KV prefix-cache invalidation / persistent-log pollution).
+7. **Compaction provenance** — near-lossless summaries with exact source locators (spill path / file / seq range).
 
 Ecosystem survey (20+ projects, with license self-check): [`docs/DSH-MEMORY-ECOSYSTEM.md`](docs/DSH-MEMORY-ECOSYSTEM.md).
 
@@ -31,8 +33,8 @@ Ecosystem survey (20+ projects, with license self-check): [`docs/DSH-MEMORY-ECOS
 | [`dsh-memory-index`](packages/dsh-memory-index) | Hybrid memory search service `ctx.memorySearch`: sqlite-vec vector arm + FTS5 lexical arm → RRF fusion; incremental per-event embedding; file-tag filtering | 1 |
 | [`dsh-memory-tool`](packages/dsh-memory-tool) | Model-facing `memory_search` tool: bounded hybrid recall over the current session's earlier conversation | 1 |
 | [`dsh-compaction-locator`](packages/dsh-compaction-locator) | Near-lossless compaction: every `<compacted-summary>` carries Exact Sources locators (spill path / file path / seq range) | 2 |
-| [`dsh-memory-core`](packages/dsh-memory-core) | Cross-session core memory: workspace fact store + stable system-prompt section injection (KV-safe) + `memory_remember` tool | 2 |
-| [`dsh-memory-skills`](packages/dsh-memory-skills) | Skill manager + background self-evolution: `skill_write/delete/list` persist DSH-native skill files; a timer-driven reflection loop distills reusable skills from finished turns | 3 |
+| [`dsh-memory-core`](packages/dsh-memory-core) | Cross-session core memory: workspace fact store + stable system-prompt section injection (KV-safe) + `memory_remember` tool + a **user-pinned `[pinned]` layer no tool can change** and `/memory-pin` `/memory-unpin` `/memory-list` commands | 2 |
+| [`dsh-memory-skills`](packages/dsh-memory-skills) | Skill manager + background self-evolution: `skill_write/delete/list` persist DSH-native skill files; a timer-driven reflection loop distills reusable skills from finished turns; **provenance + `/skill-pin` so the model cannot rewrite a user's skills** | 3 |
 | [`dsh-memory-bundle`](packages/dsh-memory-bundle) | Meta-bundle: one-command install of everything, auto-disabling conflicting base rows | integration |
 
 ---
@@ -66,7 +68,7 @@ Ecosystem survey (20+ projects, with license self-check): [`docs/DSH-MEMORY-ECOS
 | archival | full text of old events (shadowed/log-only) | **append-only** (log immutable; derived tags updatable) | derived SQLite: chunks + vec0 vectors + FTS5 |
 | core | distilled cross-session facts (preferences/conventions/environment/decisions) | **CRUD**: hash dedup + similarity merge | derived SQLite: `core_facts` |
 | dedup | tool-result hash table | pointer on hit | in-process (Phase 0 MVP) |
-| skills | reusable skill files | CRUD via `skill_write/delete` + background evolution | DSH-native Markdown files (`$DSH_HOME/skills`) |
+| skills | reusable skill files | CRUD via `skill_write/delete` + background evolution, provenance-tagged (`metadata.source`) | DSH-native Markdown files (`$DSH_HOME/skills`) |
 
 ### Query pipeline
 
@@ -108,13 +110,15 @@ Plugin defaults live in [`packages/dsh-memory-bundle/cordis.patch.yml`](packages
 The model gets five tools:
 
 - `memory_search(query, limit, max_chars, file?)` — bounded hybrid recall over the current session's earlier conversation;
-- `memory_remember(content, topic?)` — write a durable cross-session fact; it appears at the top of later requests in the same workspace (`## Persistent Memory` block);
-- `skill_write(name, description, whenToUse?, content)` — create/update a reusable skill (DSH-native skill file, immediately visible to the session skill catalog);
-- `skill_delete(name)` / `skill_list()` — delete / list skills.
+- `memory_remember(content, topic?)` — write a durable cross-session fact; it appears at the top of later requests in the same workspace (`## Persistent Memory` block). Topics include `preference` / `convention` / `environment` / `decision` / **`lesson`** / **`correction`** / `general`;
+- `skill_write(name, description, whenToUse?, content)` — create/update a reusable skill **a model wrote** (DSH-native skill file, immediately visible to the session skill catalog);
+- `skill_delete(name)` / `skill_list()` — delete / list skills, with provenance (`(managed:model)` / `(managed:evolve)` / `(human)` / `(pinned)`).
+
+**The user layer (slash commands the model cannot reach).** `/skill-pin <name>` and `/skill-unpin <name>` pin a skill file; `/memory-pin [topic] <text>`, `/memory-unpin <id|text>` and `/memory-list` manage standing memories. These run through `ctx.commands`: a slash line executes against the agent, is never submitted to the model, and no model-facing tool can dispatch one — so a pin is structural, not advisory. Files the user wrote by hand or pinned are refused to `skill_write` / `skill_delete` / the evolution loop, and each refusal lands in the `skill_events` audit log. Design and measurements: [`docs/PROVENANCE-AND-PIN.md`](docs/PROVENANCE-AND-PIN.md).
 
 ## 6. Verification
 
-Real-harness results (headless profile): full-tree startup with 8 plugins ✅, `memory_remember` ✅, `memory_search` Chinese recall ✅ (3 real records), cross-session persistence ✅. Step-by-step verification for the newer plugins (`dsh-memory-skills` and friends): [`docs/VERIFICATION.md`](docs/VERIFICATION.md).
+Real-harness results (headless profile): full-tree startup with 8 plugins ✅, `memory_remember` ✅, `memory_search` Chinese recall ✅ (3 real records), cross-session persistence ✅. A dedicated 2026-10-01 end-to-end run covered the provenance guards: three attempts by the model to overwrite/delete a hand-written skill and to overwrite a pinned one were all refused with the user's files byte-identical afterwards, the refusals were persisted as `skill_events` rows, and `memory_remember` stored a `lesson` fact through the real tool schema. Step-by-step verification: [`docs/VERIFICATION.md`](docs/VERIFICATION.md).
 
 ## 7. Roadmap & open items
 
@@ -122,7 +126,8 @@ Real-harness results (headless profile): full-tree startup with 8 plugins ✅, `
 - ✅ Phase 1: hybrid search service + `memory_search` tool
 - ✅ Phase 2: near-lossless compaction + cross-session core memory + file entity index
 - ✅ Phase 3: skill manager + background self-evolution
-- ⏳ Real-machine trigger verification for compaction/dedup/skills; bge real-embedding verification; auto recall injection once DSH provides a "non-persistent, tail-append" seam
+- ✅ Phase 3.1: provenance + the user-pinned layer (`/skill-pin`, `/memory-pin`), `lesson`/`correction` topics, additive schema migration
+- ⏳ Real-machine trigger verification for compaction/dedup; bge real-embedding verification; interactive verification of the slash commands (a headless profile has no command adapter — see `docs/VERIFICATION.md` §6); auto recall injection once DSH provides a "non-persistent, tail-append" seam
 
 ## License
 

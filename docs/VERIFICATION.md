@@ -185,3 +185,111 @@ node packages/dsh-session-query-sqlite-cjk/test/cjk.test.js
 
 > A6 需要在装有本 bundle 的 profile 上实测：本次改动只做到"契约级 + 单测级"验证，未在真实宿主进程中复现 issue #1 的场景（该宿主版本 `@deepseek-ai/dsh-desktop` 不在本机）。
 
+---
+
+# 附录 B：来源守卫与固定层真机验证（2026-10-01）
+
+> 触发：讨论 [#3898](https://github.com/deepseek-ai/deepseek-harness/discussions/3898#discussioncomment-18204894) 的评论建议留一个"模型永远写不到"的层。设计、审计与边界见 [`docs/PROVENANCE-AND-PIN.md`](PROVENANCE-AND-PIN.md)；本附录只记**怎么跑、跑出什么**。
+
+## B.0 环境与前置
+
+- DSH headless profile，8 个包全部 `link:` 到本仓库工作区（改代码即生效）；
+- overlay 把 `skillDir` 与派生库全部移进工作区，便于取证与复现：
+
+```yaml
+# .dsh-verify/e2e-patch.yml
+- id: memory-skills
+  name: dsh-memory-skills
+  config:
+    path: ./.dsh-verify/e2e-memory-skills.db
+    skillDir: ./.dsh-verify/e2e-skills
+    evolveEnabled: false
+- id: memory-core
+  name: dsh-memory-core
+  config:
+    path: ./.dsh-verify/e2e-memory-core.db
+```
+
+- 预置两个 fixture：`e2e-skills/user-handbook.md`（人手写，无 provenance）、`e2e-skills/pinned-rule.md`（`metadata: {managed: true, source: "model", pinned: true}`）；
+- 运行命令（两次会话，同一 overlay）：
+
+```powershell
+dsh --profile headless --patch ./.dsh-verify/e2e-patch.yml "<让模型依次尝试越权写入并原样回报工具输出>"
+```
+
+## B.1 结果
+
+| # | 验证项 | 结果 |
+|---|---|---|
+| B1 | 模型创建自己的技能 | ✅ `Skill "e2e-model-skill" created at …\e2e-skills\e2e-model-skill.md.` |
+| B2 | 模型更新自己的技能 | ✅ `Skill "e2e-model-skill" updated at …`（`skill_list` 显示 `e2e model skill v2`） |
+| B3 | 模型覆盖**用户手写**技能 | ✅ 拒绝：`is written by the user (source: human); model write is refused` |
+| B4 | 模型删除**用户手写**技能 | ✅ 拒绝：`model delete is refused` |
+| B5 | 模型覆盖**被固定**技能 | ✅ 拒绝：`is pinned by the user (pinned: true); model write is refused — ask the user to run /skill-unpin pinned-rule` |
+| B6 | 两个用户文件事后状态 | ✅ 重新读取**逐字节未变** |
+| B7 | `skill_list` 来源标注 | ✅ `e2e-model-skill (managed:model)` / `pinned-rule (pinned, managed:model)` / `user-handbook (human)`；bundled 技能不带标签 |
+| B8 | 拒绝的审计留痕 | ✅ `skill_events` 顺序：`created` → `refused(write)` → `refused(delete)` → `refused(pinned write)` → `updated`，每行带 `source=model` |
+| B9 | 新 topic 走真实工具 schema | ✅ `memory_remember(topic: lesson)` → `已记住 (98500077-…)`；`core_facts` 行：`topic=lesson, pinned=0, source=model` |
+| B10 | 无命令 adapter 时插件仍启动 | ✅ headless 没有 `ctx.commands`，`ctx.inject(["commands"], …)` 不 resolve，插件照常 boot |
+| B11 | 单测 | ✅ 全仓 **86/86**（其中 skills 20、core 19） |
+| B12 | **宿主侧兼容**：带 `metadata` 块的文件是否仍被 `dsh-skill-filesystem` 正常发现与加载 | ✅ 放进项目根 `.dsh/skills/`（rank 100）后**无需重启**即出现在会话技能目录，`skill` 工具返回的正文正是文件正文（`metadata` 块被正确剥离） |
+
+### B.1.1 B12 的取证过程
+
+```powershell
+# 1) 在项目根写一个带 provenance 的技能文件（项目根 = 含 .git 的目录）
+#    .dsh/skills/provenance-host-check.md
+#    frontmatter: name / description / whenToUse / metadata{managed,source}
+#    body: PROVENANCE-HOST-CHECK-OK-7F3A2B
+
+# 2) 本会话的可用技能目录在写入后立即刷新（无需重启），新增条目：
+#    - provenance-host-check: Verifies the host loader still accepts a skill file that carries
+#      this plugin's provenance metadata block
+
+# 3) 用 skill 工具加载该技能，返回：
+#    <skill_instructions>
+#    PROVENANCE-HOST-CHECK-OK-7F3A2B
+#    </skill_instructions>
+
+# 4) 删除该文件后，技能目录同样立即移除该条目（watcher 双向生效）
+```
+
+意义：`metadata` 是宿主**文档中列为可选键**的 provider 私有元数据通道（`parseSkillFile → optionalMetadata`），实测确认它不是"我们的私有扩展"——写了 provenance 的技能仍是被宿主正常识别的原生技能，且正文与元数据分离正确。这是本方案的**前置假设**，所以单列一条。
+
+**B10 的边界**：正因 headless 没有命令面，`/skill-pin` `/skill-unpin` `/memory-pin` `/memory-unpin` `/memory-list` **没有端到端真机验证**，只有 handler 级单测（`registerSkillCommands` / `registerMemoryCommands`）。命令面需要在交互式 profile（web/tui）里手工过一遍。
+
+## B.2 复现命令
+
+```powershell
+# 单测（沙箱内必须用单进程隔离，逐文件 spawn 会被拦）
+node --test --experimental-test-isolation=none `
+  packages/dsh-session-query-sqlite-cjk/test/cjk.test.js `
+  packages/dsh-tool-result-dedup/test/dedup.test.js `
+  packages/dsh-memory-index/test/memory-index.test.js `
+  packages/dsh-memory-tool/test/memory-tool.test.js `
+  packages/dsh-compaction-locator/test/compaction-locator.test.js `
+  packages/dsh-memory-core/test/memory-core.test.js `
+  packages/dsh-memory-skills/test/skills.test.js
+# ℹ tests 86 / ℹ pass 86 / ℹ fail 0
+
+# 审计轨迹取证
+node -e "const{DatabaseSync}=require('node:sqlite');const s=new DatabaseSync('.dsh-verify/e2e-memory-skills.db');console.table(s.prepare('SELECT kind,name,source,substr(reason,1,52) reason FROM skill_events ORDER BY created_at').all())"
+```
+
+## B.3 已有的相反实证（墙 (b)）
+
+同一套沙箱在 **workspace-write** 会话里拒绝对默认技能根的写入：
+
+```text
+write C:\Users\钱铃\.dsh\skills\sandbox-probe.md
+→ [sandbox: file access denied under workspace-write mode]
+```
+
+即默认技能根在会话 workspace 之外，通用 `write`/`edit` 工具够不到；该保护在把 `skillDir` 配置进工作区时失效（见 PROVENANCE-AND-PIN §5）。
+
+## B.4 未验证项（照实列出）
+
+1. **交互式命令面端到端**（B10 的边界，需 web/tui profile 手工验证）；
+2. **v1 → v2 真实库升级**：迁移逻辑有单测（构造 v1 库后打开，行与列齐备、`migrated=true`、重开不再迁移），但没有在"真机跑过一段时间、积累了大量 `skill_events`"的库上验证过；
+3. **Windows 之外的宿主**：未在 Linux/macOS 上跑过。
+

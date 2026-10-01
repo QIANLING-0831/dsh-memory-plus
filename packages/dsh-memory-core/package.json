@@ -1,7 +1,7 @@
 {
   "name": "dsh-memory-core",
-  "description": "Cross-session core memory for the DeepSeek Harness — workspace-scoped persistent facts (ctx.memoryCore) with a stable system-prompt section (KV-cache safe) and a memory_remember tool.",
-  "version": "0.1.0",
+  "description": "Cross-session core memory for the DeepSeek Harness — workspace-scoped persistent facts (ctx.memoryCore) with a stable system-prompt section (KV-cache safe), a memory_remember tool, lesson/correction topics, and a user-pinned [pinned] layer (/memory-pin) that no model-side write can modify or delete.",
+  "version": "0.2.0",
   "publishConfig": {
     "access": "public"
   },

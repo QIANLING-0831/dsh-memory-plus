@@ -1,6 +1,6 @@
 # dsh-memory
 
-DeepSeek Harness（DSH）记忆优化的社区插件集（`dsh-plugin`）：中文可用的会话全文检索、工具结果去重、混合记忆检索、跨会话核心记忆、近无损压缩、**技能管理器 + 后台自我进化**。Phase 0–3 已落地，并在真实 harness（headless profile）中集成验证，69 个单测通过。
+DeepSeek Harness（DSH）记忆优化的社区插件集（`dsh-plugin`）：中文可用的会话全文检索、工具结果去重、混合记忆检索、跨会话核心记忆、近无损压缩、**技能管理器 + 后台自我进化**，以及**来源可审计、模型写不到的用户专属层**。Phase 0–3 已落地，并在真实 harness（headless profile）中集成验证，86 个单测通过。
 
 > **宿主版本要求**：DSH **`>=0.1.5-rc.3 <0.3.0`**（cordis `^4.0.1`），已在 **0.1.5-rc.3 与 0.2.0-rc.2** 上验证。`ctx.sessionQuery` 由本仓的 CJK 插件作为上游 `SessionQueryEngine` 的**继承子类**提供，必须与宿主解析成同一份 `@deepseek-ai/dsh-session-query`，否则宿主会拿到缺少 `observeSession()` 的服务实例——详见 [issue #1](https://github.com/QIANLING-0831/dsh-memory-plus/issues/1) 与 `packages/dsh-session-query-sqlite-cjk/README.md` 的「宿主版本契约」。
 
@@ -14,9 +14,11 @@ DSH 记忆插件半年内涌现 20+（dsh-memory-evolve 205⭐ / dsh-mnemon 136�
 
 1. **CJK 检索修复（生态唯一）**：trigram 双表 + 1–2 字 LIKE 回退——20+ 记忆插件共同受益（实测 0 命中 → 全命中）；
 2. **技能自我进化**：`skill_write/delete/list` + 后台反思蒸馏（Hermes 式学习循环，请求路径零开销）；
-3. **Token 去重**：工具结果哈希去重，纯省输入 Token；
-4. **KV-safe 稳定注入**：基于源码级验证（`buildRequest` deepFreeze / KV 前缀缓存 / 持久化路径）的注入纪律；
-5. **compaction 来源定位**：近无损压缩 + 摘要可溯源。
+3. **用户专属层（模型写不到）**：技能与常驻记忆都带**来源 provenance**；用户手写/`/skill-pin` `/memory-pin` 固定的内容，模型工具与后台进化一律拒绝改写，拒绝还进审计日志；
+4. **按场景区分的记忆**：事实 / 约定 / 环境 / 决策之外，`lesson` `correction` 是正式分类（"哪里错了"不被埋进 general）；
+5. **Token 去重**：工具结果哈希去重，纯省输入 Token；
+6. **KV-safe 稳定注入**：基于源码级验证（`buildRequest` deepFreeze / KV 前缀缓存 / 持久化路径）的注入纪律；
+7. **compaction 来源定位**：近无损压缩 + 摘要可溯源。
 
 生态盘点（20+ 项目对照表 + license 自查）：[`docs/DSH-MEMORY-ECOSYSTEM.md`](docs/DSH-MEMORY-ECOSYSTEM.md)。
 
@@ -31,8 +33,8 @@ DSH 记忆插件半年内涌现 20+（dsh-memory-evolve 205⭐ / dsh-mnemon 136�
 | [`dsh-memory-index`](packages/dsh-memory-index) | 混合记忆检索服务 `ctx.memorySearch`：sqlite-vec 向量臂 + FTS5 词法臂 → RRF 融合；事件级增量嵌入；file 词条过滤 | Phase 1 |
 | [`dsh-memory-tool`](packages/dsh-memory-tool) | 模型可调用的 `memory_search` 工具：会话旧内容混合召回，输出有界 | Phase 1 |
 | [`dsh-compaction-locator`](packages/dsh-compaction-locator) | 近无损压缩：每个 `<compacted-summary>` 追加 Exact Sources 定位符（spill 路径 / 文件路径 / seq 区间） | Phase 2 |
-| [`dsh-memory-core`](packages/dsh-memory-core) | 跨会话核心记忆：workspace 事实库 + 稳定 system-prompt section 注入（KV 安全）+ `memory_remember` 工具 | Phase 2 |
-| [`dsh-memory-skills`](packages/dsh-memory-skills) | 技能管理器 + 后台自我进化：`skill_write/delete/list` 写 DSH 原生技能文件；定时反思从完成回合蒸馏可复用技能（Hermes 式学习循环） | Phase 3 |
+| [`dsh-memory-core`](packages/dsh-memory-core) | 跨会话核心记忆：workspace 事实库 + 稳定 system-prompt section 注入（KV 安全）+ `memory_remember` 工具 + **用户固定的 `[pinned]` 层（模型改不动）** + `/memory-pin` `/memory-unpin` `/memory-list` 命令 | Phase 2 |
+| [`dsh-memory-skills`](packages/dsh-memory-skills) | 技能管理器 + 后台自我进化：`skill_write/delete/list` 写 DSH 原生技能文件；定时反思从完成回合蒸馏可复用技能（Hermes 式学习循环）；**provenance + `/skill-pin` 固定层，模型改不动用户技能** | Phase 3 |
 | [`dsh-memory-bundle`](packages/dsh-memory-bundle) | 元 bundle：一键安装以上全部插件，自动禁用 base 的 session-query / compaction 行 | 集成 |
 
 ---
@@ -144,9 +146,11 @@ cd $env:DSH_HOME/profiles/<profile> && pnpm install
 模型获得五个记忆/技能工具：
 
 - `memory_search(query, limit, max_chars, file?)`：对本会话旧内容做混合（词法 + 语义）召回，snippet 严格有界；
-- `memory_remember(content, topic?)`：写入跨会话持久事实，自动出现在该 workspace 后续请求的系统提示顶部（`## Persistent Memory` 区块）；
-- `skill_write(name, description, whenToUse?, content)`：创建/更新可复用技能（写 DSH 原生技能文件，**立即进入会话技能目录**）；
-- `skill_delete(name)` / `skill_list()`：删除 / 列出技能。
+- `memory_remember(content, topic?)`：写入跨会话持久事实，自动出现在该 workspace 后续请求的系统提示顶部（`## Persistent Memory` 区块）；`topic` 含 `preference` / `convention` / `environment` / `decision` / **`lesson`** / **`correction`** / `general`；
+- `skill_write(name, description, whenToUse?, content)`：创建/更新**模型自己写的**可复用技能（写 DSH 原生技能文件，**立即进入会话技能目录**）；
+- `skill_delete(name)` / `skill_list()`：删除 / 列出技能（`skill_list` 标注来源：`(managed:model)` / `(managed:evolve)` / `(human)` / `(pinned)`）。
+
+**用户专属层（斜杠命令，模型够不到）**：`/skill-pin <name>` `/skill-unpin <name>` 固定或解除固定一个技能；`/memory-pin [topic] <text>` `/memory-unpin <id|text>` `/memory-list` 管理常驻固定记忆。命令走 `ctx.commands`——只对 agent 执行、不会变成模型消息，也没有任何模型工具能派发它；被固定或被用户手写的内容，模型工具与后台进化一律拒绝（拒绝原因写进 `skill_events` 审计日志）。设计与实测见 [`docs/PROVENANCE-AND-PIN.md`](docs/PROVENANCE-AND-PIN.md)。
 
 **后台自我进化**：`dsh-memory-skills` 定时（默认 60s）扫描已完成回合，按每会话水位线 + 冷却期 + 启发式门槛触发一次 LLM 反思（"这段回合是否产生可复用技能？"），命中即自动写入技能文件——fire-and-forget，请求路径零开销，全部动作记入派生库 `skill_events` 日志。
 
@@ -160,11 +164,13 @@ cd $env:DSH_HOME/profiles/<profile> && pnpm install
 
 | 项目 | 结果 |
 |---|---|
-| 整树启动（7 插件已验证 + `memory-skills` 待验证） | ✅ |
+| 整树启动（7 插件全部加载） | ✅ |
 | `memory_remember` 写入 | ✅ 返回「已记住 (uuid)」 |
 | `memory_search` 混合召回（中文查询） | ✅ 命中 3 条真实会话记录 |
 | **跨会话持久化**（新会话系统提示注入） | ✅ 逐字可见 |
-| 技能工具 + 后台自我进化（`dsh-memory-skills`） | ⏳ 验证步骤见 [`docs/VERIFICATION.md`](docs/VERIFICATION.md) |
+| 技能工具 + 后台自我进化（`dsh-memory-skills`） | ✅ |
+| **来源守卫（2026-10-01 真机 e2e）**：模型改写/删除用户手写技能、改写被固定技能 | ✅ 三次全部拒绝且文件未被改动，拒绝记录进 `skill_events` |
+| `lesson` topic 经真机 `memory_remember` 落库 | ✅ `topic=lesson, source=model` |
 
 跨会话实测输出（新会话）：
 
@@ -197,8 +203,10 @@ cd $env:DSH_HOME/profiles/<profile> && pnpm install
 
 ```sh
 corepack pnpm install
-corepack pnpm test        # 69 个单测（node --test，7 个包：CJK 16 / core 12 / skills 10 / 混合检索 8 / 工具 8 / 压缩 8 / 去重 7）
+corepack pnpm test        # 86 个单测（node --test，7 个包：CJK 16 / core 19 / skills 20 / 混合检索 8 / 工具 8 / 压缩 8 / 去重 7）
 ```
+
+> 在受限沙箱里跑（例如从 DSH 的 workspace-write 会话内）时，`node --test` 的每文件子进程会被沙箱拦住（`spawn EPERM`）；改用 `node --test --experimental-test-isolation=none <files>` 在单进程内跑同样的用例即可，结果一致（86/86）。
 
 每个插件遵循 DSH 插件形态（`name` / `inject` / `Config` / `apply`，或 Service 类 + `super(ctx, name)`），测试覆盖检索、去重、压缩定位符、事实库、技能管理与后台进化等核心逻辑。
 
@@ -225,6 +233,7 @@ corepack pnpm test        # 69 个单测（node --test，7 个包：CJK 16 / cor
 | [Anthropic Contextual Retrieval](https://www.anthropic.com/engineering/contextual-retrieval) | 上下文化切块（事件 + 工具/文件元数据，零额外 LLM 成本） | embedding 的语境前缀 |
 | [Zep（时态知识图谱）](https://arxiv.org/html/2501.13956v1) | 实体/关系随对话增量维护 | file 词条索引（简化版） |
 | [sqlite-vec](https://github.com/asg017/sqlite-vec) | SQLite 内嵌向量检索（契合单 owner 派生库） | 向量臂 |
+| [Hermes Agent](https://github.com/NousResearch)（经 [pi2dsh](https://github.com/weijiafu14/pi2dsh) 维护者在 [discussion #3898](https://github.com/deepseek-ai/deepseek-harness/discussions/3898#discussioncomment-18204894) 的评论转述） | **永久置顶内容结构性挡在模型写入路径之外**：`/memory-pin` 做成斜杠命令而非工具（源码注释：*makes model-authored standing instructions structurally impossible rather than merely forbidden by prompt*） | `dsh-memory-core` 的 `[pinned]` 层与 `dsh-memory-skills` 的 provenance + `/skill-pin`；详见 [`docs/PROVENANCE-AND-PIN.md`](docs/PROVENANCE-AND-PIN.md) |
 
 ---
 
@@ -234,7 +243,8 @@ corepack pnpm test        # 69 个单测（node --test，7 个包：CJK 16 / cor
 - ✅ Phase 1：混合检索服务 + `memory_search` 工具
 - ✅ Phase 2：近无损压缩 + 跨会话核心记忆 + file 实体索引
 - ✅ Phase 3：技能管理器 + 后台自我进化（Hermes 式学习循环落地，见 `dsh-memory-skills`）
-- ⏳ 遗留：compaction-locator / dedup / memory-skills 的真机触发验证（见 [`docs/VERIFICATION.md`](docs/VERIFICATION.md)）；bge 真嵌入验证；自动 recall 注入待 DSH 提供"非持久化 + 尾部追加"接缝
+- ✅ Phase 3.1：来源 provenance + 用户专属固定层（技能 `/skill-pin`、记忆 `/memory-pin`）+ `lesson`/`correction` 分类 + 加列式 schema 迁移
+- ⏳ 遗留：compaction-locator / dedup 的真机触发验证（见 [`docs/VERIFICATION.md`](docs/VERIFICATION.md)）；bge 真嵌入验证；斜杠命令的真机交互验证（headless profile 无命令适配器，见 `docs/VERIFICATION.md` §6）；自动 recall 注入待 DSH 提供"非持久化 + 尾部追加"接缝
 
 ---
 

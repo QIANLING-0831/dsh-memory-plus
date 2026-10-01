@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="872" height="542" viewBox="0 0 872 542" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13">
+<title>dsh-memory-plus CJK session search — real engine output</title>
+<desc>Terminal recording of scripts/demo-cjk-search.mjs. Every line is actual stdout from the real CjkSessionQueryEngine over an in-memory index.</desc>
+<style>
+.term{fill:#0b1020}
+.chrome{fill:#1b2440}
+.dot{fill:#ff5f57}
+.dot2{fill:#febc2e}
+.dot3{fill:#28c840}
+text{white-space:pre}
+.l0{animation:l0 10220ms steps(1,end) infinite}
+@keyframes l0{0%,0.000%{opacity:0}0.001%,100%{opacity:1}}
+.l1{animation:l1 10220ms steps(1,end) infinite}
+@keyframes l1{0%,2.544%{opacity:0}2.545%,100%{opacity:1}}
+.l2{animation:l2 10220ms steps(1,end) infinite}
+@keyframes l2{0%,5.088%{opacity:0}5.089%,100%{opacity:1}}
+.l3{animation:l3 10220ms steps(1,end) infinite}
+@keyframes l3{0%,7.632%{opacity:0}7.633%,100%{opacity:1}}
+.l4{animation:l4 10220ms steps(1,end) infinite}
+@keyframes l4{0%,10.176%{opacity:0}10.177%,100%{opacity:1}}
+.l5{animation:l5 10220ms steps(1,end) infinite}
+@keyframes l5{0%,12.720%{opacity:0}12.721%,100%{opacity:1}}
+.l6{animation:l6 10220ms steps(1,end) infinite}
+@keyframes l6{0%,15.264%{opacity:0}15.265%,100%{opacity:1}}
+.l7{animation:l7 10220ms steps(1,end) infinite}
+@keyframes l7{0%,17.808%{opacity:0}17.809%,100%{opacity:1}}
+.l8{animation:l8 10220ms steps(1,end) infinite}
+@keyframes l8{0%,20.352%{opacity:0}20.353%,100%{opacity:1}}
+.l9{animation:l9 10220ms steps(1,end) infinite}
+@keyframes l9{0%,22.896%{opacity:0}22.897%,100%{opacity:1}}
+.l10{animation:l10 10220ms steps(1,end) infinite}
+@keyframes l10{0%,25.440%{opacity:0}25.441%,100%{opacity:1}}
+.l11{animation:l11 10220ms steps(1,end) infinite}
+@keyframes l11{0%,27.984%{opacity:0}27.985%,100%{opacity:1}}
+.l12{animation:l12 10220ms steps(1,end) infinite}
+@keyframes l12{0%,30.528%{opacity:0}30.529%,100%{opacity:1}}
+.l13{animation:l13 10220ms steps(1,end) infinite}
+@keyframes l13{0%,33.072%{opacity:0}33.073%,100%{opacity:1}}
+.l14{animation:l14 10220ms steps(1,end) infinite}
+@keyframes l14{0%,35.616%{opacity:0}35.617%,100%{opacity:1}}
+.l15{animation:l15 10220ms steps(1,end) infinite}
+@keyframes l15{0%,38.160%{opacity:0}38.161%,100%{opacity:1}}
+.l16{animation:l16 10220ms steps(1,end) infinite}
+@keyframes l16{0%,40.705%{opacity:0}40.706%,100%{opacity:1}}
+.l17{animation:l17 10220ms steps(1,end) infinite}
+@keyframes l17{0%,43.249%{opacity:0}43.250%,100%{opacity:1}}
+.l18{animation:l18 10220ms steps(1,end) infinite}
+@keyframes l18{0%,45.793%{opacity:0}45.794%,100%{opacity:1}}
+.l19{animation:l19 10220ms steps(1,end) infinite}
+@keyframes l19{0%,48.337%{opacity:0}48.338%,100%{opacity:1}}
+.l20{animation:l20 10220ms steps(1,end) infinite}
+@keyframes l20{0%,50.881%{opacity:0}50.882%,100%{opacity:1}}
+.l21{animation:l21 10220ms steps(1,end) infinite}
+@keyframes l21{0%,53.425%{opacity:0}53.426%,100%{opacity:1}}
+.l22{animation:l22 10220ms steps(1,end) infinite}
+@keyframes l22{0%,55.969%{opacity:0}55.970%,100%{opacity:1}}
+.l23{animation:l23 10220ms steps(1,end) infinite}
+@keyframes l23{0%,58.513%{opacity:0}58.514%,100%{opacity:1}}
+.l24{animation:l24 10220ms steps(1,end) infinite}
+@keyframes l24{0%,61.057%{opacity:0}61.058%,100%{opacity:1}}
+.l25{animation:l25 10220ms steps(1,end) infinite}
+@keyframes l25{0%,63.601%{opacity:0}63.602%,100%{opacity:1}}
+.l26{animation:l26 10220ms steps(1,end) infinite}
+@keyframes l26{0%,66.145%{opacity:0}66.146%,100%{opacity:1}}
+.l27{animation:l27 10220ms steps(1,end) infinite}
+@keyframes l27{0%,68.689%{opacity:0}68.690%,100%{opacity:1}}
+</style>
+<rect class="term" width="100%" height="100%" rx="8"/>
+<rect class="chrome" width="100%" height="28" rx="8"/>
+<circle class="dot" cx="16" cy="14" r="5"/>
+<circle class="dot2" cx="34" cy="14" r="5"/>
+<circle class="dot3" cx="52" cy="14" r="5"/>
+<text x="72" y="19" fill="#94a3b8" font-size="11">node scripts/demo-cjk-search.mjs — dsh-memory-plus</text>
+<text class="l0" x="16" y="44" fill="#e2e8f0" xml:space="preserve">dsh-memory-plus · CJK session search, real engine, in-memory index</text>
+<text class="l1" x="16" y="61" fill="#e2e8f0" xml:space="preserve">═══════════════════════════════════════════════════════════════════════</text>
+<text class="l2" x="16" y="78" fill="#e2e8f0" xml:space="preserve">indexed session log:</text>
+<text class="l3" x="16" y="95" fill="#e2e8f0" xml:space="preserve">   seq0  user/message   帮我看看 OpenRouter 的免费视觉模型，顺便优化一下记忆检索</text>
+<text class="l4" x="16" y="112" fill="#e2e8f0" xml:space="preserve">   seq1  assistant      建议用 FTS5 trigram tokenizer</text>
+<text class="l5" x="16" y="129" fill="#e2e8f0" xml:space="preserve">      修复中文分词问题，索引优化后Token消耗也能降下来</text>
+<text class="l6" x="16" y="146" fill="#e2e8f0" xml:space="preserve">   seq2  tool/result    SELECT * FROM persisted_docs WHERE 索引优化 MATCH ?</text>
+<text class="l7" x="16" y="163" fill="#e2e8f0" xml:space="preserve"> </text>
+<text class="l8" x="16" y="180" fill="#7dd3fc" xml:space="preserve">query &quot;索引优化&quot;      2 hits   4 CJK chars                       → trigram index</text>
+<text class="l9" x="16" y="197" fill="#a3e635" xml:space="preserve">      seq 2  SELECT * FROM persisted_docs WHERE 索引优化 MATCH ?</text>
+<text class="l10" x="16" y="214" fill="#a3e635" xml:space="preserve">      seq 1  建议用 FTS5 trigram tokenizer 修复中文分词问题，索引优化后Token消耗也能降下来</text>
+<text class="l11" x="16" y="231" fill="#7dd3fc" xml:space="preserve">query &quot;Token消耗&quot;     1 hit    mixed CJK + ASCII                 → trigram index</text>
+<text class="l12" x="16" y="248" fill="#a3e635" xml:space="preserve">      seq 1  建议用 FTS5 trigram tokenizer 修复中文分词问题，索引优化后Token消耗也能降下来</text>
+<text class="l13" x="16" y="265" fill="#7dd3fc" xml:space="preserve">query &quot;OpenRouter&quot;    1 hit    ASCII only                        → unicode61 index (upstream path)</text>
+<text class="l14" x="16" y="282" fill="#a3e635" xml:space="preserve">      seq 0  帮我看看 OpenRouter 的免费视觉模型，顺便优化一下记忆检索</text>
+<text class="l15" x="16" y="299" fill="#7dd3fc" xml:space="preserve">query &quot;消耗&quot;          1 hit    2 CJK chars, cannot form a trigram → LIKE fallback</text>
+<text class="l16" x="16" y="316" fill="#a3e635" xml:space="preserve">      seq 1  建议用 FTS5 trigram tokenizer 修复中文分词问题，索引优化后Token消耗也能降下来</text>
+<text class="l17" x="16" y="333" fill="#7dd3fc" xml:space="preserve">query &quot;优&quot;            3 hits   1 CJK char                        → LIKE fallback</text>
+<text class="l18" x="16" y="350" fill="#a3e635" xml:space="preserve">      seq 0  帮我看看 OpenRouter 的免费视觉模型，顺便优化一下记忆检索</text>
+<text class="l19" x="16" y="367" fill="#a3e635" xml:space="preserve">      seq 2  SELECT * FROM persisted_docs WHERE 索引优化 MATCH ?</text>
+<text class="l20" x="16" y="384" fill="#a3e635" xml:space="preserve">      seq 1  建议用 FTS5 trigram tokenizer 修复中文分词问题，索引优化后Token消耗也能降下来</text>
+<text class="l21" x="16" y="401" fill="#7dd3fc" xml:space="preserve">query &quot;量子计算&quot;      0 hits   absent from the log               → no hits</text>
+<text class="l22" x="16" y="418" fill="#e2e8f0" xml:space="preserve"> </text>
+<text class="l23" x="16" y="435" fill="#e2e8f0" xml:space="preserve">notes:</text>
+<text class="l24" x="16" y="452" fill="#e2e8f0" xml:space="preserve">  · ASCII queries take the untouched unicode61 table — upstream behaviour, byte for byte.</text>
+<text class="l25" x="16" y="469" fill="#e2e8f0" xml:space="preserve">  · CJK queries of 3+ chars go to the trigram table; 1–2 char CJK queries fall back to an</text>
+<text class="l26" x="16" y="486" fill="#e2e8f0" xml:space="preserve">    escaped LIKE scan, because a trigram index contains no 1- or 2-character gram at all.</text>
+<text class="l27" x="16" y="503" fill="#e2e8f0" xml:space="preserve">  · Reproduce: node scripts/demo-cjk-search.mjs</text>
+</svg>

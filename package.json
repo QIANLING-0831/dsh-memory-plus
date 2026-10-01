@@ -5,6 +5,8 @@
   "version": "0.1.0",
   "license": "MIT",
   "scripts": {
-    "test": "node --test packages/dsh-session-query-sqlite-cjk/test/cjk.test.js packages/dsh-tool-result-dedup/test/dedup.test.js packages/dsh-memory-index/test/memory-index.test.js packages/dsh-memory-tool/test/memory-tool.test.js packages/dsh-compaction-locator/test/compaction-locator.test.js packages/dsh-memory-core/test/memory-core.test.js packages/dsh-memory-skills/test/skills.test.js"
+    "test": "node --test packages/dsh-session-query-sqlite-cjk/test/cjk.test.js packages/dsh-tool-result-dedup/test/dedup.test.js packages/dsh-memory-index/test/memory-index.test.js packages/dsh-memory-tool/test/memory-tool.test.js packages/dsh-compaction-locator/test/compaction-locator.test.js packages/dsh-memory-core/test/memory-core.test.js packages/dsh-memory-skills/test/skills.test.js",
+    "check:publish": "node scripts/check-publish.mjs",
+    "prepublishOnly": "node scripts/check-publish.mjs"
   }
 }

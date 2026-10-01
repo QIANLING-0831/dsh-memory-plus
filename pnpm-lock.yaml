@@ -32,25 +32,25 @@ importers:
   packages/dsh-memory-bundle:
     dependencies:
       dsh-compaction-locator:
-        specifier: file:../dsh-compaction-locator
+        specifier: workspace:^
         version: link:../dsh-compaction-locator
       dsh-memory-core:
-        specifier: file:../dsh-memory-core
+        specifier: workspace:^
         version: link:../dsh-memory-core
       dsh-memory-index:
-        specifier: file:../dsh-memory-index
+        specifier: workspace:^
         version: link:../dsh-memory-index
       dsh-memory-skills:
-        specifier: file:../dsh-memory-skills
+        specifier: workspace:^
         version: link:../dsh-memory-skills
       dsh-memory-tool:
-        specifier: file:../dsh-memory-tool
-        version: file:packages/dsh-memory-tool(@deepseek-ai/cordis@4.0.4)(@deepseek-ai/dsh-tools@0.2.0-rc.2(c6e351a6a6cfd1c2a664558bffcd410d))(dsh-memory-index@file:packages/dsh-memory-index(@deepseek-ai/cordis@4.0.4)(@deepseek-ai/dsh-session-query@0.2.0-rc.2(069eba8b86abde526309743b5cd0afbb))(@deepseek-ai/dsh-session@0.2.0-rc.2(@deepseek-ai/cordis@4.0.4)(@deepseek-ai/dsh-scope@0.2.0-rc.2(@deepseek-ai/cordis@4.0.4)(@deepseek-ai/dsh-invariants@0.2.0-rc.2(@deepseek-ai/cordis@4.0.4)))))
+        specifier: workspace:^
+        version: link:../dsh-memory-tool
       dsh-session-query-sqlite-cjk:
-        specifier: file:../dsh-session-query-sqlite-cjk
+        specifier: workspace:^
         version: link:../dsh-session-query-sqlite-cjk
       dsh-tool-result-dedup:
-        specifier: file:../dsh-tool-result-dedup
+        specifier: workspace:^
         version: link:../dsh-tool-result-dedup
 
   packages/dsh-memory-core:
@@ -595,20 +595,6 @@ packages:
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
 
-  dsh-memory-index@file:packages/dsh-memory-index:
-    resolution: {directory: packages/dsh-memory-index, type: directory}
-    peerDependencies:
-      '@deepseek-ai/cordis': ^4.0.1
-      '@deepseek-ai/dsh-session': '>=0.1.5-rc.3 <0.3.0'
-      '@deepseek-ai/dsh-session-query': '>=0.1.5-rc.3 <0.3.0'
-
-  dsh-memory-tool@file:packages/dsh-memory-tool:
-    resolution: {directory: packages/dsh-memory-tool, type: directory}
-    peerDependencies:
-      '@deepseek-ai/cordis': ^4.0.1
-      '@deepseek-ai/dsh-tools': '>=0.1.5-rc.3 <0.3.0'
-      dsh-memory-index: workspace:*
-
   sqlite-vec-darwin-arm64@0.1.9:
     resolution: {integrity: sha512-jSsZpE42OfBkGL/ItyJTVCUwl6o6Ka3U5rc4j+UBDIQzC1ulSSKMEhQLthsOnF/MdAf1MuAkYhkdKmmcjaIZQg==}
     cpu: [arm64]
@@ -1084,21 +1070,6 @@ snapshots:
       '@standard-schema/spec': 1.1.0
 
   '@standard-schema/spec@1.1.0': {}
-
-  dsh-memory-index@file:packages/dsh-memory-index(@deepseek-ai/cordis@4.0.4)(@deepseek-ai/dsh-session-query@0.2.0-rc.2(069eba8b86abde526309743b5cd0afbb))(@deepseek-ai/dsh-session@0.2.0-rc.2(@deepseek-ai/cordis@4.0.4)(@deepseek-ai/dsh-scope@0.2.0-rc.2(@deepseek-ai/cordis@4.0.4)(@deepseek-ai/dsh-invariants@0.2.0-rc.2(@deepseek-ai/cordis@4.0.4)))):
-    dependencies:
-      '@deepseek-ai/cordis': 4.0.4
-      '@deepseek-ai/dsh-session': 0.2.0-rc.2(@deepseek-ai/cordis@4.0.4)(@deepseek-ai/dsh-scope@0.2.0-rc.2(@deepseek-ai/cordis@4.0.4)(@deepseek-ai/dsh-invariants@0.2.0-rc.2(@deepseek-ai/cordis@4.0.4)))
-      '@deepseek-ai/dsh-session-query': 0.2.0-rc.2(c04d3f1bfedbd26c5208281a03a7f329)
-      '@deepseek-ai/schemastery': 3.18.2
-      sqlite-vec: 0.1.9
-
-  dsh-memory-tool@file:packages/dsh-memory-tool(@deepseek-ai/cordis@4.0.4)(@deepseek-ai/dsh-tools@0.2.0-rc.2(c6e351a6a6cfd1c2a664558bffcd410d))(dsh-memory-index@file:packages/dsh-memory-index(@deepseek-ai/cordis@4.0.4)(@deepseek-ai/dsh-session-query@0.2.0-rc.2(069eba8b86abde526309743b5cd0afbb))(@deepseek-ai/dsh-session@0.2.0-rc.2(@deepseek-ai/cordis@4.0.4)(@deepseek-ai/dsh-scope@0.2.0-rc.2(@deepseek-ai/cordis@4.0.4)(@deepseek-ai/dsh-invariants@0.2.0-rc.2(@deepseek-ai/cordis@4.0.4))))):
-    dependencies:
-      '@deepseek-ai/cordis': 4.0.4
-      '@deepseek-ai/dsh-tools': 0.2.0-rc.2(c6e351a6a6cfd1c2a664558bffcd410d)
-      '@deepseek-ai/schemastery': 3.18.1
-      dsh-memory-index: file:packages/dsh-memory-index(@deepseek-ai/cordis@4.0.4)(@deepseek-ai/dsh-session-query@0.2.0-rc.2(069eba8b86abde526309743b5cd0afbb))(@deepseek-ai/dsh-session@0.2.0-rc.2(@deepseek-ai/cordis@4.0.4)(@deepseek-ai/dsh-scope@0.2.0-rc.2(@deepseek-ai/cordis@4.0.4)(@deepseek-ai/dsh-invariants@0.2.0-rc.2(@deepseek-ai/cordis@4.0.4))))
 
   sqlite-vec-darwin-arm64@0.1.9:
     optional: true

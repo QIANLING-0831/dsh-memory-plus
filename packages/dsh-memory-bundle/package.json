@@ -29,13 +29,13 @@
     }
   },
   "dependencies": {
-    "dsh-compaction-locator": "file:../dsh-compaction-locator",
-    "dsh-memory-core": "file:../dsh-memory-core",
-    "dsh-memory-index": "file:../dsh-memory-index",
-    "dsh-memory-skills": "file:../dsh-memory-skills",
-    "dsh-memory-tool": "file:../dsh-memory-tool",
-    "dsh-session-query-sqlite-cjk": "file:../dsh-session-query-sqlite-cjk",
-    "dsh-tool-result-dedup": "file:../dsh-tool-result-dedup"
+    "dsh-compaction-locator": "workspace:^",
+    "dsh-memory-core": "workspace:^",
+    "dsh-memory-index": "workspace:^",
+    "dsh-memory-skills": "workspace:^",
+    "dsh-memory-tool": "workspace:^",
+    "dsh-session-query-sqlite-cjk": "workspace:^",
+    "dsh-tool-result-dedup": "workspace:^"
   },
   "author": "QIANLING-0831",
   "homepage": "https://github.com/QIANLING-0831/dsh-memory-plus#readme"

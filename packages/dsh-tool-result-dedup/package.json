@@ -42,5 +42,7 @@
   },
   "dependencies": {
     "@deepseek-ai/schemastery": "^3.18.1"
-  }
+  },
+  "author": "QIANLING-0831",
+  "homepage": "https://github.com/QIANLING-0831/dsh-memory-plus#readme"
 }

@@ -45,5 +45,7 @@
     "@deepseek-ai/dsh-skill": "0.2.0-rc.2",
     "@deepseek-ai/dsh-tools": "0.2.0-rc.2",
     "@deepseek-ai/schemastery": "^3.18.4"
-  }
+  },
+  "author": "QIANLING-0831",
+  "homepage": "https://github.com/QIANLING-0831/dsh-memory-plus#readme"
 }

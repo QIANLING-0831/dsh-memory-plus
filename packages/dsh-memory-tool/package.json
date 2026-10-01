@@ -46,5 +46,7 @@
     "@deepseek-ai/cordis": "^4.0.4",
     "@deepseek-ai/dsh-tools": "0.2.0-rc.2",
     "dsh-memory-index": "workspace:*"
-  }
+  },
+  "author": "QIANLING-0831",
+  "homepage": "https://github.com/QIANLING-0831/dsh-memory-plus#readme"
 }

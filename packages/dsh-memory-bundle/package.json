@@ -36,5 +36,7 @@
     "dsh-memory-tool": "file:../dsh-memory-tool",
     "dsh-session-query-sqlite-cjk": "file:../dsh-session-query-sqlite-cjk",
     "dsh-tool-result-dedup": "file:../dsh-tool-result-dedup"
-  }
+  },
+  "author": "QIANLING-0831",
+  "homepage": "https://github.com/QIANLING-0831/dsh-memory-plus#readme"
 }

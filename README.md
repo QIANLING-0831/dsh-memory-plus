@@ -1,4 +1,22 @@
-# dsh-memory
+<p align="center"><img src=".github/readme/banner.svg" alt="DSH Memory Plus — 中文检索与跨会话记忆" width="100%"></p>
+
+<h1 align="center">DSH Memory Plus · 中文检索与跨会话记忆</h1>
+
+<p align="center">为 DeepSeek Harness 补齐中文检索、混合召回、核心记忆与技能管理。</p>
+
+<p align="center"><img src="https://img.shields.io/badge/docs-%E4%B8%AD%E6%96%87-22d3ee?style=flat-square&amp;labelColor=172033" alt="docs: 中文"> <img src="https://img.shields.io/badge/maintainer-QIANLING-0831-22d3ee?style=flat-square&amp;labelColor=172033" alt="maintainer: QIANLING-0831"> </p>
+
+<p align="center"><a href="#0-为什么不是第-16-个记忆插件">0. 为什么不是&quot;第 16 个记忆插件&quot;</a> &nbsp; · &nbsp; <a href="#1-插件一览">1. 插件一览</a> &nbsp; · &nbsp; <a href="#2-背景dsh-记忆链路的现状与缺陷">2. 背景：DSH 记忆链路的现状与缺陷</a> &nbsp; · &nbsp; <a href="#3-架构三层记忆数据库--词条索引--增量驱动">3. 架构：三层记忆数据库 + 词条索引 + 增量驱动</a></p>
+
+---
+
+## 项目概览
+
+| 方向 | 内容 |
+| --- | --- |
+| **中文召回** | FTS5 trigram 与短查询回退 |
+| **记忆分层** | 会话归档、跨会话事实与混合检索 |
+| **用户控制** | 带来源记录的固定记忆与技能保护 |
 
 DeepSeek Harness（DSH）记忆优化的社区插件集（`dsh-plugin`）：中文可用的会话全文检索、工具结果去重、混合记忆检索、跨会话核心记忆、近无损压缩、**技能管理器 + 后台自我进化**，以及**来源可审计、模型写不到的用户专属层**。Phase 0–3 已落地，并在真实 harness（headless profile）中集成验证，86 个单测通过。
 
@@ -112,7 +130,7 @@ Stage 3  合并候选 → 已在上下文的替换为指针 → 预算裁剪
 
 ```sh
 git clone https://github.com/QIANLING-0831/dsh-memory-plus.git
-cd dsh-memory
+cd dsh-memory-plus
 # Windows：
 .\scripts\install.ps1 -Profile headless
 # Linux/macOS：等价命令见 scripts/ 目录
@@ -122,7 +140,7 @@ cd dsh-memory
 
 ```sh
 git clone https://github.com/QIANLING-0831/dsh-memory-plus.git
-cd dsh-memory
+cd dsh-memory-plus
 dsh plugin --profile <profile> add ./packages/dsh-memory-bundle
 dsh plugin --profile <profile> add ./packages/dsh-session-query-sqlite-cjk ./packages/dsh-tool-result-dedup ./packages/dsh-memory-index ./packages/dsh-memory-tool ./packages/dsh-compaction-locator ./packages/dsh-memory-core ./packages/dsh-memory-skills
 cd $env:DSH_HOME/profiles/<profile> && pnpm install

@@ -4,7 +4,7 @@
 
 <p align="center">为 DeepSeek Harness 补齐中文检索、混合召回、核心记忆与技能管理。</p>
 
-<p align="center"><img src="https://img.shields.io/badge/docs-%E4%B8%AD%E6%96%87-22d3ee?style=flat-square&amp;labelColor=172033" alt="docs: 中文"> <img src="https://img.shields.io/badge/maintainer-QIANLING-0831-22d3ee?style=flat-square&amp;labelColor=172033" alt="maintainer: QIANLING-0831"> </p>
+<p align="center"><img src="https://img.shields.io/badge/docs-%E4%B8%AD%E6%96%87-22d3ee?style=flat-square&amp;labelColor=172033" alt="docs: 中文"> <img src="https://img.shields.io/badge/maintainer-QIANLING--0831-22d3ee?style=flat-square&amp;labelColor=172033" alt="maintainer: QIANLING-0831"> </p>
 
 <p align="center"><a href="#0-为什么不是第-16-个记忆插件">0. 为什么不是&quot;第 16 个记忆插件&quot;</a> &nbsp; · &nbsp; <a href="#1-插件一览">1. 插件一览</a> &nbsp; · &nbsp; <a href="#2-背景dsh-记忆链路的现状与缺陷">2. 背景：DSH 记忆链路的现状与缺陷</a> &nbsp; · &nbsp; <a href="#3-架构三层记忆数据库--词条索引--增量驱动">3. 架构：三层记忆数据库 + 词条索引 + 增量驱动</a></p>
 

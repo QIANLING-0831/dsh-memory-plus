@@ -1,5 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { mkdtemp, rm, stat } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { DatabaseSync } from "node:sqlite";
+import { Service } from "@deepseek-ai/cordis";
 import CjkSessionQueryEngine from "../lib/index.js";
 
 const SESSION_ID = "test-session";
@@ -42,6 +47,20 @@ const events = [
 		type: "assistant/message",
 		surfaceOp: "append",
 		data: { message: { content: [{ type: "text", text: "索引优化减少Token消耗的句子" }] } }
+	},
+	{
+		seq: 5,
+		time: NOW + 5000,
+		type: "user/message",
+		surfaceOp: "append",
+		data: { content: [{ type: "text", text: "这是\u{20000}\u{20001}\u{20002}\u{20003}记录" }] }
+	},
+	{
+		seq: 6,
+		time: NOW + 6000,
+		type: "user/message",
+		surfaceOp: "append",
+		data: { content: [{ type: "text", text: "另一个\u{20000}\u{20001}\u{20002}\u{20003}记录" }] }
 	}
 ];
 
@@ -170,6 +189,78 @@ async function withPersistedSnapshotEngine(fn) {
 		await engine.close();
 	}
 }
+
+for (const [source, run] of [
+	["live", withEngine],
+	["legacy persistence", withPersistedEngine],
+	["handle-based persistence", withPersistedSnapshotEngine]
+]) {
+	for (const query of ["\u{20000}", "\u{20000}\u{20001}", "\u{20000}\u{20001}\u{20002}"]) {
+		test(`${source}: supplementary Han query (${Array.from(query).length} code points) matches with pagination`, async () => {
+			await run(async (engine) => {
+				const request = { sessionId: SESSION_ID, query, limit: 1 };
+				const first = await engine.searchEvents(request);
+				assert.equal(first.items.length, 1);
+				assert.ok(first.nextCursor, "both supplementary-Han documents must match");
+				const second = await engine.searchEvents({ ...request, cursor: first.nextCursor });
+				assert.equal(second.items.length, 1);
+				assert.equal(second.nextCursor, undefined);
+				const hits = [...first.items, ...second.items];
+				assert.deepEqual(hits.map((hit) => hit.seq).sort(), [5, 6]);
+				for (const hit of hits) assert.ok(hit.snippet.includes(query));
+				const sessions = await engine.searchSessions({ query, limit: 1 });
+				assert.equal(sessions.items.length, 1);
+				assert.equal(sessions.items[0].header.id, SESSION_ID);
+				assert.equal(sessions.items[0].live, source === "live");
+				assert.equal(sessions.items[0].persisted, source !== "live");
+				assert.ok(sessions.items[0].bestMatch.snippet.includes(query));
+			});
+		});
+	}
+}
+
+test("first-search backfills cold history into a durable index and preserves it after reopening", async () => {
+	const directory = await mkdtemp(join(tmpdir(), "dsh-cjk-search-"));
+	const path = join(directory, "search.db");
+	let engine = new CjkSessionQueryEngine(persistedSnapshotStubCtx(), { path, openAt: "first-search" });
+	try {
+		await engine[Service.init]();
+		await assert.rejects(stat(path), { code: "ENOENT" });
+		const first = await engine.searchSessions({ query: "Token消耗", limit: 10 });
+		assert.equal(first.items.length, 1, "the first search must backfill an existing cold session");
+		assert.equal(first.items[0].persisted, true);
+		assert.equal(first.items[0].live, false);
+		await engine.close();
+		const db = new DatabaseSync(path, { readOnly: true });
+		try {
+			assert.equal(db.prepare("SELECT count(*) AS n FROM persisted_sessions").get().n, 1);
+			assert.equal(db.prepare("SELECT count(*) AS n FROM persisted_docs").get().n, events.length);
+			assert.equal(db.prepare("SELECT count(*) AS n FROM persisted_docs_cjk").get().n, events.length);
+		} finally {
+			db.close();
+		}
+		engine = new CjkSessionQueryEngine(persistedSnapshotStubCtx(), { path, openAt: "first-search" });
+		const reopened = await engine.searchSessions({ query: "Token消耗", limit: 10 });
+		assert.deepEqual(reopened.items, first.items);
+		for (const query of ["\u{20000}", "\u{20000}\u{20001}", "\u{20000}\u{20001}\u{20002}"]) {
+			const page = await engine.searchEvents({ sessionId: SESSION_ID, query, limit: 10 });
+			assert.deepEqual(page.items.map((hit) => hit.seq).sort(), [5, 6]);
+			for (const hit of page.items) assert.ok(hit.snippet.includes(query));
+		}
+	} finally {
+		await engine.close();
+		await rm(directory, { recursive: true, force: true });
+	}
+});
+
+test("supplementary Han short queries keep LIKE wildcards literal", async () => {
+	await withEngine(async (engine) => {
+		for (const query of ["\u{20000}%", "\u{20000}_", "\u{20000}\\", "\u{20010}"]) {
+			const page = await engine.searchEvents({ sessionId: SESSION_ID, query, limit: 10 });
+			assert.equal(page.items.length, 0, `query must match only its literal text: ${query}`);
+		}
+	});
+});
 
 test("CJK query hits via the trigram table (upstream unicode61 cannot match this)", async () => {
 	await withEngine(async (engine) => {

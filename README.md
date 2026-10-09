@@ -18,7 +18,7 @@
 | **记忆分层** | 会话归档、跨会话事实与混合检索 |
 | **用户控制** | 带来源记录的固定记忆与技能保护 |
 
-DeepSeek Harness（DSH）记忆优化的社区插件集（`dsh-plugin`）：中文可用的会话全文检索、工具结果去重、混合记忆检索、跨会话核心记忆、近无损压缩、**技能管理器 + 后台自我进化**，以及**来源可审计、模型写不到的用户专属层**。Phase 0–3 已落地，并在真实 harness（headless profile）中集成验证，86 个单测通过。
+DeepSeek Harness（DSH）记忆优化的社区插件集（`dsh-plugin`）：中文可用的会话全文检索、工具结果去重、混合记忆检索、跨会话核心记忆、近无损压缩、**技能管理器 + 后台自我进化**，以及**来源可审计、模型写不到的用户专属层**。Phase 0–3 已落地，并在真实 harness（headless profile）中集成验证，97 个单测通过。
 
 > **宿主版本要求**：DSH **`>=0.1.5-rc.3 <0.3.0`**（cordis `^4.0.1`），已在 **0.1.5-rc.3 与 0.2.0-rc.2** 上验证。`ctx.sessionQuery` 由本仓的 CJK 插件作为上游 `SessionQueryEngine` 的**继承子类**提供，必须与宿主解析成同一份 `@deepseek-ai/dsh-session-query`，否则宿主会拿到缺少 `observeSession()` 的服务实例——详见 [issue #1](https://github.com/QIANLING-0831/dsh-memory-plus/issues/1) 与 `packages/dsh-session-query-sqlite-cjk/README.md` 的「宿主版本契约」。
 

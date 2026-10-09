@@ -20,6 +20,8 @@ CJK 可用的 `ctx.sessionQuery` 后端：继承 `@deepseek-ai/dsh-session-query
 
 > 路由规则：查询含 CJK 字符且总长 < 3（无法构成任何 trigram）→ LIKE 回退；含 CJK 且总长 ≥ 3 → trigram 表（混合查询如 `Token消耗` 的 CJK 部分虽只有 2 字，但整体 ≥3 字符可构成合法 trigram，直接命中）；纯 ASCII → 走 unicode61 表，行为与上游完全一致。
 
+CJK 检测包含 Unicode `Script=Han`（包括扩展平面的汉字，如 `𠀀` / U+20000），并保留原有 BMP 汉字、兼容汉字、平假名/片假名和 Hangul 音节范围。长度按 Unicode 码点计数：`𠀀`、`𠀀𠀁` 走 LIKE，`𠀀𠀁𠀂` 走 trigram，不把 UTF-16 代理对算成两个字符。
+
 ## 与上游的关系（fork 声明）
 
 本包是 [`@deepseek-ai/dsh-session-query-sqlite`](https://github.com/deepseek-ai/deepseek-harness)（MIT，fork 基线 **v0.1.5-rc.3**，已在 **0.2.0-rc.2** 上交叉验证）的 fork-copy，完整保留了上游的调和状态机、generation、TEMP shadow、游标、分页等全部契约。改动仅：
@@ -72,6 +74,8 @@ CJK 可用的 `ctx.sessionQuery` 后端：继承 `@deepseek-ai/dsh-session-query
 | `readWindowMax` / `persistedReadConcurrency` | `50` / `4` | 继承自服务定义（旧拼写 `persistedInspectConcurrency` 仍接受） |
 | `preparedSessionCacheSize` | `5` | 继承自服务定义（冷会话观察缓存） |
 
+`openAt` 控制数据库打开时机，不负责后台索引。`first-search` 在首次调用 `searchSessions()` / `searchEvents()` 前不创建数据库；`startup` 只提前打开数据库。实际搜索会同步活会话及已挂载 `sessionPersistence` 列出的历史会话，因此首次搜索会回填冷历史，后续搜索按 revision 增量更新。活会话优先使用连接内的 TEMP 索引，关闭连接后 TEMP 表消失。仅看到磁盘上的 `persisted_sessions` / `persisted_docs` 为 0 不足以判定回填失败；若实际搜索仍无结果，检查 `sessionPersistence` 是否挂载、是否能列出历史，以及搜索是否报错。仅在侧边栏搜索标题不会触发正文索引。
+
 ## 已知限制
 
 - **trigram 表体积约为原文 2–3 倍**：双写双表，磁盘占用高于上游；派生库可丢弃、可重建（schema version 机制保证）。
@@ -86,6 +90,8 @@ node --test test/cjk.test.js
 ```
 
 覆盖：中文子串命中（trigram）、中英混合命中（trigram）、1–2 字中文 LIKE 回退、LIKE 通配符转义、短查询无命中、会话级检索、持久化会话检索、无命中场景，以及 issue #1 的三条回归：
+
+扩展汉字回归通过活会话、两代持久化 API 分别验证 1/2/3 码点查询的事件分页、snippet 和会话级命中；另验证短查询通配符转义、`first-search` 首次回填磁盘索引及关闭后重开检索。持久化 API 在这些单测中由 stub 提供，不能替代桌面宿主实测。
 
 - **继承宿主 `observeSession` 契约**：直接断言 `CjkSessionQueryEngine.prototype.observeSession` 是函数，并对一个真实形态的活会话完成一次完整 observation（宿主 `dsh-api-session-controller` 的入口）。
 - **活会话契约**：stub 只提供 `header` + `snapshotEvents()`（无 `events` 数组），检索仍须命中——旧测试手工构造 `{ header, events }`，用测试假设替代了真机契约，因此漏掉了这个 bug。

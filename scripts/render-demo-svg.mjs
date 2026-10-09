@@ -38,7 +38,7 @@ function displayWidth(text) {
 	let width = 0;
 	for (const character of String(text)) {
 		const code = character.codePointAt(0);
-		const wide =
+		const wide = /\p{Script=Han}/u.test(character) ||
 			(code >= 0x1100 && code <= 0x115f) ||
 			(code >= 0x2e80 && code <= 0xa4cf) ||
 			(code >= 0xac00 && code <= 0xd7a3) ||
@@ -105,7 +105,7 @@ for (let index = 0; index < wrapped.length; index += 1) {
 		const text = frame[line];
 		const width = displayWidth(text);
 		if (width > COLS) throw new Error(`wrapped line still exceeds ${COLS} columns: ${text}`);
-		const startPct = ((order * FRAME_MS) / totalMs) * 100;
+		const startPct = ((index * FRAME_MS) / totalMs) * 100;
 		const className = `l${order}`;
 		styles.push(
 			`.${className}{animation:${className} ${totalMs}ms steps(1,end) infinite}`,
@@ -131,6 +131,7 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${Math.round(PAD_LEF
 .dot3{fill:#28c840}
 text{white-space:pre}
 ${styles.join("\n")}
+@media (prefers-reduced-motion:reduce){text{animation:none!important;opacity:1!important}}
 </style>
 <rect class="term" width="100%" height="100%" rx="8"/>
 <rect class="chrome" width="100%" height="28" rx="8"/>

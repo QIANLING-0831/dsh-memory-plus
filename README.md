@@ -1,8 +1,12 @@
-<p align="center"><img src=".github/readme/banner.svg" alt="DSH Memory Plus — 中文检索与跨会话记忆" width="100%"></p>
-
 <h1 align="center">DSH Memory Plus · 中文检索与跨会话记忆</h1>
 
-<p align="center">为 DeepSeek Harness 补齐中文检索、混合召回、核心记忆与技能管理。</p>
+<p align="center">为 DeepSeek Harness 补齐中文与扩展汉字检索、跨会话记忆、工具去重与技能管理。</p>
+
+![真实 CJK 检索演示：中文混排、扩展汉字、短查询和 ASCII](docs/demo-cjk-search.svg)
+
+<p align="center">真实搜索引擎输出 · 扩展汉字 1／2／3 码点 · 短查询回退 · ASCII 与通配符对照</p>
+
+扩展汉字以 Unicode 转义显示，避免字体缺字；实际查询使用原始码点。演示使用内存索引和合成会话，由 [演示脚本](scripts/demo-cjk-search.mjs) 的实际输出生成。[完整宿主验证](docs/CJK-HOST-VERIFICATION.md)另覆盖真实持久化、冷重启、分页和 Web 界面；97 项单测、8 个包检查通过，macOS／Windows 桌面壳尚待社区验证。
 
 <p align="center"><img src="https://img.shields.io/badge/docs-%E4%B8%AD%E6%96%87-22d3ee?style=flat-square&amp;labelColor=172033" alt="docs: 中文"> <img src="https://img.shields.io/badge/maintainer-QIANLING--0831-22d3ee?style=flat-square&amp;labelColor=172033" alt="maintainer: QIANLING-0831"> </p>
 
@@ -18,7 +22,7 @@
 | **记忆分层** | 会话归档、跨会话事实与混合检索 |
 | **用户控制** | 带来源记录的固定记忆与技能保护 |
 
-DeepSeek Harness（DSH）记忆优化的社区插件集（`dsh-plugin`）：中文可用的会话全文检索、工具结果去重、混合记忆检索、跨会话核心记忆、近无损压缩、**技能管理器 + 后台自我进化**，以及**来源可审计、模型写不到的用户专属层**。Phase 0–3 已落地，并在真实 harness（headless profile）中集成验证，97 个单测通过。
+DeepSeek Harness（DSH）的社区记忆插件集，共 8 个包：让中文子串、中英混排和扩展汉字可检索，并提供工具结果去重、向量与全文混合召回、跨会话核心记忆、可追溯压缩和技能管理。用户固定的记忆与技能带来源记录，模型工具与后台进化无法改写。Phase 0–3 已实现；CJK 后端已通过完整 `0.2.0-rc.2` Web 宿主的活会话与冷历史验证。
 
 > **宿主版本要求**：DSH **`>=0.1.5-rc.3 <0.3.0`**（cordis `^4.0.1`），已在 **0.1.5-rc.3 与 0.2.0-rc.2** 上验证。`ctx.sessionQuery` 由本仓的 CJK 插件作为上游 `SessionQueryEngine` 的**继承子类**提供，必须与宿主解析成同一份 `@deepseek-ai/dsh-session-query`，否则宿主会拿到缺少 `observeSession()` 的服务实例——详见 [issue #1](https://github.com/QIANLING-0831/dsh-memory-plus/issues/1) 与 `packages/dsh-session-query-sqlite-cjk/README.md` 的「宿主版本契约」。
 
@@ -221,10 +225,10 @@ cd $env:DSH_HOME/profiles/<profile> && pnpm install
 
 ```sh
 corepack pnpm install
-corepack pnpm test        # 86 个单测（node --test，7 个包：CJK 16 / core 19 / skills 20 / 混合检索 8 / 工具 8 / 压缩 8 / 去重 7）
+corepack pnpm test        # 97 个单测（node --test，7 个包：CJK 27 / core 19 / skills 20 / 混合检索 8 / 工具 8 / 压缩 8 / 去重 7）
 ```
 
-> 在受限沙箱里跑（例如从 DSH 的 workspace-write 会话内）时，`node --test` 的每文件子进程会被沙箱拦住（`spawn EPERM`）；改用 `node --test --experimental-test-isolation=none <files>` 在单进程内跑同样的用例即可，结果一致（86/86）。
+> 在受限沙箱里跑（例如从 DSH 的 workspace-write 会话内）时，`node --test` 的每文件子进程会被沙箱拦住（`spawn EPERM`）；改用 `node --test --experimental-test-isolation=none <files>` 在单进程内跑同样的用例即可，结果一致（97/97）。
 
 每个插件遵循 DSH 插件形态（`name` / `inject` / `Config` / `apply`，或 Service 类 + `super(ctx, name)`），测试覆盖检索、去重、压缩定位符、事实库、技能管理与后台进化等核心逻辑。
 

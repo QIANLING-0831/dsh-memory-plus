@@ -13,6 +13,7 @@
  */
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import assert from "node:assert/strict";
 // Relative import on purpose: the root package does not depend on the plugin
 // packages, so a bare specifier would not resolve from scripts/. This still
 // loads the exact module a DSH profile loads.
@@ -28,7 +29,7 @@ const events = [
 		time: T0,
 		type: "user/message",
 		surfaceOp: "append",
-		data: { content: [{ type: "text", text: "帮我看看 OpenRouter 的免费视觉模型，顺便优化一下记忆检索" }] },
+		data: { content: [{ type: "text", text: "帮我看看 OpenRouter 的免费视觉模型，顺便优化一下记忆检索。扩展汉字记录：𠀀𠀁𠀂𠀃" }] },
 	},
 	{
 		seq: 1,
@@ -76,7 +77,7 @@ function displayWidth(text) {
 	let width = 0;
 	for (const character of String(text)) {
 		const code = character.codePointAt(0);
-		const wide =
+		const wide = /\p{Script=Han}/u.test(character) ||
 			(code >= 0x1100 && code <= 0x115f) ||
 			(code >= 0x2e80 && code <= 0xa4cf) ||
 			(code >= 0xac00 && code <= 0xd7a3) ||
@@ -94,10 +95,17 @@ function padTo(text, columns) {
 	return text + " ".repeat(padding);
 }
 
+// Supplementary Han glyphs are absent from many viewers' terminal fonts.
+function terminalText(text) {
+	return text.replace(/\p{Script=Han}/gu, (character) => character.codePointAt(0) > 0xffff
+		? `\\u{${character.codePointAt(0).toString(16)}}` : character);
+}
+
 const lines = [];
 const say = (text = "") => {
-	lines.push(text);
-	console.log(text);
+	const displayed = terminalText(text);
+	lines.push(displayed);
+	console.log(displayed);
 };
 
 const engine = new CjkSessionQueryEngine(stubCtx(), { path: ":memory:", openAt: "startup", journalMode: "delete" });
@@ -112,30 +120,37 @@ try {
 	say("");
 
 	const queries = [
-		["索引优化", "4 CJK chars                       → trigram index"],
-		["Token消耗", "mixed CJK + ASCII                 → trigram index"],
-		["OpenRouter", "ASCII only                        → unicode61 index (upstream path)"],
-		["消耗", "2 CJK chars, cannot form a trigram → LIKE fallback"],
-		["优", "1 CJK char                        → LIKE fallback"],
-		["量子计算", "absent from the log               → no hits"],
+		["索引优化", "4 CJK code points       → trigram index", 2],
+		["Token消耗", "mixed CJK + ASCII       → trigram index", 1],
+		["𠀀", "U+20000, 1 code point   → LIKE fallback", 1],
+		["𠀀𠀁", "2 supplementary Han    → LIKE fallback", 1],
+		["𠀀𠀁𠀂", "3 supplementary Han    → trigram index", 1],
+		["OpenRouter", "ASCII only             → unicode61 index", 1],
+		["消耗", "2 CJK code points      → LIKE fallback", 1],
+		["优", "1 CJK code point       → LIKE fallback", 3],
+		["𠀀%", "literal %, not wildcard → no hits", 0],
+		["量子计算", "absent from the log    → no hits", 0],
 	];
 
-	for (const [query, note] of queries) {
+	for (const [query, note, expectedHits] of queries) {
 		const page = await engine.searchEvents({ sessionId: SESSION_ID, query, limit: 5 });
 		const hits = page.items.length;
-		const label = `query "${query}"`;
+		assert.equal(hits, expectedHits, `unexpected hits for ${query}`);
+		const label = `query "${terminalText(query)}"`;
 		const result = hits === 0 ? "0 hits" : `${hits} hit${hits === 1 ? "" : "s"}`;
-		say(`${padTo(label, 22)}${padTo(result, 9)}${note}`);
+		say(`${padTo(label, 36)}${padTo(result, 9)}${note}`);
 		for (const hit of page.items) {
+			assert.ok(hit.snippet.includes(query), `snippet must contain ${query}`);
 			say(`      seq ${hit.seq}  ${hit.snippet}`);
 		}
 	}
 
 	say("");
 	say("notes:");
-	say("  · ASCII queries take the untouched unicode61 table — upstream behaviour, byte for byte.");
-	say("  · CJK queries of 3+ chars go to the trigram table; 1–2 char CJK queries fall back to an");
-	say("    escaped LIKE scan, because a trigram index contains no 1- or 2-character gram at all.");
+	say("  · Han includes supplementary planes; length counts Unicode code points, not UTF-16 units.");
+	say("  · Supplementary Han is displayed as Unicode escapes so missing fonts do not hide the query.");
+	say("  · 3+ CJK code points use trigram; 1–2 use escaped LIKE. ASCII keeps unicode61.");
+	say("  · Real search engine + synthetic live session; full-host verification: docs/CJK-HOST-VERIFICATION.md");
 	say("  · Reproduce: node scripts/demo-cjk-search.mjs");
 
 	const framesIndex = process.argv.indexOf("--frames");

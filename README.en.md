@@ -1,6 +1,12 @@
 # dsh-memory
 
-A community plugin suite (`dsh-plugin`) that makes DeepSeek Harness (DSH) memory actually work: CJK-capable full-text session search, tool-result dedup, hybrid memory retrieval, cross-session core memory, near-lossless compaction, a **skill manager with background self-evolution**, and a **provenance-audited user layer the model cannot write**. Phases 0–3 are implemented and integration-verified on a real harness; 97 unit tests pass.
+Eight community memory plugins for DeepSeek Harness (DSH): Chinese substring, mixed-text and supplementary Han search, tool-result dedup, hybrid vector/full-text recall, cross-session core memory, traceable compaction and skill management. Pinned memories and skills carry provenance and cannot be changed by model tools or background evolution. Phases 0–3 are implemented; the CJK backend is verified with live and cold history in the complete `0.2.0-rc.2` Web host.
+
+![Real CJK search demo: mixed text, supplementary Han, short queries and ASCII](docs/demo-cjk-search.svg)
+
+Real engine output: supplementary Han queries of 1/2/3 code points, short-query fallback, ASCII and literal-wildcard controls. Supplementary Han is displayed as Unicode escapes for font compatibility; the engine queries the original code points. Generated from [the demo script](scripts/demo-cjk-search.mjs) using an in-memory index and a synthetic live session.
+
+[Full-host verification](docs/CJK-HOST-VERIFICATION.md) additionally covers real persistence, cold reboot, pagination and the Web UI. **97 unit tests and all 8 package checks pass.** macOS/Windows desktop shells await community validation.
 
 > **Host requirement: DSH `>=0.1.5-rc.3 <0.3.0` (cordis `^4.0.1`), verified on 0.1.5-rc.3 and 0.2.0-rc.2.** `ctx.sessionQuery` is provided by this repo's CJK plugin as a **subclass** of upstream `SessionQueryEngine`, so it must resolve the *same* `@deepseek-ai/dsh-session-query` copy as the host — otherwise the host gets a service instance without `observeSession()`. See [issue #1](https://github.com/QIANLING-0831/dsh-memory-plus/issues/1) and the "host version contract" section of `packages/dsh-session-query-sqlite-cjk/README.md`.
 

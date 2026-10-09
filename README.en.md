@@ -1,6 +1,6 @@
 # dsh-memory
 
-A community plugin suite (`dsh-plugin`) that makes DeepSeek Harness (DSH) memory actually work: CJK-capable full-text session search, tool-result dedup, hybrid memory retrieval, cross-session core memory, near-lossless compaction, a **skill manager with background self-evolution**, and a **provenance-audited user layer the model cannot write**. Phases 0–3 are implemented and integration-verified on a real harness; 86 unit tests pass.
+A community plugin suite (`dsh-plugin`) that makes DeepSeek Harness (DSH) memory actually work: CJK-capable full-text session search, tool-result dedup, hybrid memory retrieval, cross-session core memory, near-lossless compaction, a **skill manager with background self-evolution**, and a **provenance-audited user layer the model cannot write**. Phases 0–3 are implemented and integration-verified on a real harness; 97 unit tests pass.
 
 > **Host requirement: DSH `>=0.1.5-rc.3 <0.3.0` (cordis `^4.0.1`), verified on 0.1.5-rc.3 and 0.2.0-rc.2.** `ctx.sessionQuery` is provided by this repo's CJK plugin as a **subclass** of upstream `SessionQueryEngine`, so it must resolve the *same* `@deepseek-ai/dsh-session-query` copy as the host — otherwise the host gets a service instance without `observeSession()`. See [issue #1](https://github.com/QIANLING-0831/dsh-memory-plus/issues/1) and the "host version contract" section of `packages/dsh-session-query-sqlite-cjk/README.md`.
 

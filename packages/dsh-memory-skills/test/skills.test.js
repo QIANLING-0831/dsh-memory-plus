@@ -125,7 +125,8 @@ test("parseEvolutionResponse handles fences and prose", () => {
 
 // ---------- Engine: manager + evolution ----------
 
-test("engine writeSkill/deleteSkill/listManaged/log round-trip", async () => {
+test("engine writeSkill/deleteSkill/listManaged/log round-trip", async (t) => {
+	t.mock.method(Date, "now", () => 1700000000000);
 	const dir = tempDir();
 	const ctx = stubCtx();
 	const engine = new MemorySkillsEngine(ctx, { path: ":memory:", skillDir: dir, evolveEnabled: false });
@@ -137,7 +138,9 @@ test("engine writeSkill/deleteSkill/listManaged/log round-trip", async () => {
 	assert.equal(await engine.deleteSkill("recall"), false);
 	const log = engine.log();
 	assert.equal(log.length, 2); // created + deleted
+	assert.equal(log[0].created_at, log[1].created_at);
 	assert.equal(log[0].kind, "deleted");
+	assert.deepEqual(engine.log(1).map((entry) => entry.kind), ["deleted"]);
 	await engine.close();
 	rmSync(dir, { recursive: true, force: true });
 });

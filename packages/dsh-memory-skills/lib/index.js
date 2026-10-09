@@ -650,7 +650,7 @@ export class MemorySkillsEngine extends Service {
 	}
 	/** Recent evolution/management log entries, newest first. */
 	log(limit = 20) {
-		return this._db.prepare("SELECT id, kind, name, session_id, reason, source, created_at FROM skill_events ORDER BY created_at DESC LIMIT ?").all(limit);
+		return this._db.prepare("SELECT id, kind, name, session_id, reason, source, created_at FROM skill_events ORDER BY created_at DESC, rowid DESC LIMIT ?").all(limit);
 	}
 	/** One background pass: scan live sessions past their watermark and evolve. */
 	async _evolveTick() {

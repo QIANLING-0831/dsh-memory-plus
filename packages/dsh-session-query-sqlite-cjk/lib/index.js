@@ -975,8 +975,8 @@ function headerBindings(header) {
 		header.agentPreset ?? null
 	];
 }
-/** CJK ranges: Unified Ideographs, Compatibility Ideographs, Hiragana/Katakana, Hangul. */
-const CJK_CHARACTER_RE = /[\u3400-\u9FFF\uF900-\uFAFF\u3040-\u30FF\uAC00-\uD7AF]/;
+/** Han (including supplementary planes), BMP ideograph ranges, Hiragana/Katakana, Hangul. */
+const CJK_CHARACTER_RE = /[\p{Script=Han}\u3400-\u9FFF\uF900-\uFAFF\u3040-\u30FF\uAC00-\uD7AF]/u;
 /** True when the query contains CJK characters that unicode61 cannot segment. */
 function containsCjk(query) {
 	return CJK_CHARACTER_RE.test(query);

@@ -4,7 +4,7 @@ import z from "@deepseek-ai/schemastery";
 import { defineTool } from "@deepseek-ai/dsh-tools";
 import { createUserMessage } from "@deepseek-ai/dsh-llm";
 import { isSkillName } from "@deepseek-ai/dsh-skill";
-import { mkdirSync, readFileSync, readdirSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -71,9 +71,10 @@ Respond with ONLY a JSON object. No prose, no markdown fences:
 If nothing is worth keeping, respond {"evolve": false, "reason": "one line why not"}.`;
 /** Resolve and validate config with defaults. */
 function resolveConfig(config) {
-	const dshHome = process.env.DSH_HOME ?? join(homedir(), ".dsh");
-	return {
-		path: config.path ?? join(dshHome, "memory-skills.db"),
+	const dshHome = resolve(process.env.DSH_HOME || join(homedir(), ".dsh"));
+	const legacyPath = resolve(".dsh-verify/memory-skills.db");
+	const resolved = {
+		path: config.path ?? (existsSync(legacyPath) ? legacyPath : join(dshHome, "memory-skills.db")),
 		skillDir: config.skillDir ?? join(dshHome, "skills"),
 		enabled: config.enabled ?? true,
 		maxSkills: config.maxSkills ?? DEFAULT_MAX_SKILLS,
@@ -87,6 +88,8 @@ function resolveConfig(config) {
 		evolveMaxTokens: config.evolveMaxTokens ?? 1024,
 		evolvePrompt: config.evolvePrompt ?? DEFAULT_EVOLVE_PROMPT
 	};
+	if (typeof resolved.path !== "string" || resolved.path.trim().length === 0) throw new Error("dsh-memory-skills: path must not be blank");
+	return resolved;
 }
 /** schemastery schema mirroring `resolveConfig` (module-level for the loader). */
 const Config = z.object({
@@ -514,6 +517,8 @@ export class MemorySkillsEngine extends Service {
 		if (actual !== ":memory:") mkdirSync(dirname(actual), { recursive: true, mode: 448 });
 		const db = new DatabaseSync(actual);
 		try {
+			db.exec("PRAGMA busy_timeout = 5000");
+			db.exec("BEGIN IMMEDIATE");
 			const { application_id: applicationId } = db.prepare("PRAGMA application_id").get();
 			const { user_version: version } = db.prepare("PRAGMA user_version").get();
 			const userTables = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT GLOB 'sqlite_*'").all().map((row) => row.name);
@@ -522,6 +527,8 @@ export class MemorySkillsEngine extends Service {
 			if (applicationId === SKILLS_APPLICATION_ID && version > SKILLS_SCHEMA_VERSION) throw new Error(`dsh-memory-skills: database at "${actual}" was written by a newer release (schema ${version} > ${SKILLS_SCHEMA_VERSION})`);
 			const migrated = applicationId === SKILLS_APPLICATION_ID ? migrateSchema(db, version) : false;
 			ensureSchema(db);
+			db.exec("COMMIT");
+			if (actual !== ":memory:") db.exec("PRAGMA journal_mode = WAL");
 			return {
 				db,
 				migrated

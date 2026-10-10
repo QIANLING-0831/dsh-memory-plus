@@ -3,6 +3,8 @@ import { Service } from "@deepseek-ai/cordis";
 import z from "@deepseek-ai/schemastery";
 import SessionQueryEngine, { SESSION_QUERY_DEFAULT_PERSISTED_INSPECT_CONCURRENCY, SESSION_QUERY_DEFAULT_PREPARED_SESSION_CACHE_SIZE, SESSION_QUERY_READ_WINDOW_MAX, SessionQueryError, SessionSearchCursor, assertSessionHeadersCompatible, buildSessionEventSearchDocuments, materializeSessionEventResultFilters, materializeSessionResultFilters } from "@deepseek-ai/dsh-session-query";
 import { mkdir, open } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { homedir } from "node:os";
 import { dirname, resolve } from "node:path";
 //#region lib/types/schema.js
 /**
@@ -63,6 +65,8 @@ async function openSearchDatabase(path, journalMode) {
 	const { DatabaseSync } = await import("node:sqlite");
 	const db = new DatabaseSync(actual);
 	try {
+		db.exec("PRAGMA busy_timeout = 5000");
+		db.exec("BEGIN IMMEDIATE");
 		const { application_id: applicationId } = db.prepare("PRAGMA application_id").get();
 		const { user_version: version } = db.prepare("PRAGMA user_version").get();
 		const userTables = listUserTables(db);
@@ -74,9 +78,10 @@ async function openSearchDatabase(path, journalMode) {
 			assertDerivedUserTables(actual, userTables);
 			if (version !== CJK_QUERY_SQLITE_SCHEMA_VERSION) resetDerivedSchema(db, userTables);
 		}
-		db.exec(`PRAGMA journal_mode = ${journalMode.toUpperCase()}`);
 		ensurePersistentSchema(db);
 		ensureTemporarySchema(db);
+		db.exec("COMMIT");
+		db.exec(`PRAGMA journal_mode = ${journalMode.toUpperCase()}`);
 		return db;
 	} catch (error) {
 		db.close();
@@ -515,7 +520,7 @@ const STABLE_OBSERVATION_ATTEMPTS = 2;
 var CjkSessionQueryEngine = class extends SessionQueryEngine {
 	static inject = ["sessions"];
 	static Config = z.object({
-		path: z.string().required(),
+		path: z.string(),
 		openAt: z.union([
 			"startup",
 			"first-search",
@@ -1333,8 +1338,9 @@ function invalidCursor(cause) {
 	return new SessionQueryError("session-search cursor is invalid", "SESSION_QUERY_INVALID_CURSOR", { cause });
 }
 function resolveConfig(config) {
+	const legacyPath = resolve(".dsh-verify/session-query-cjk.db");
 	const resolved = {
-		path: config.path,
+		path: config.path ?? (existsSync(legacyPath) ? legacyPath : resolve(process.env.DSH_HOME || resolve(homedir(), ".dsh"), "session-query-cjk.db")),
 		openAt: config.openAt ?? "startup",
 		journalMode: config.journalMode ?? "wal",
 		defaultLimit: config.defaultLimit ?? 20,

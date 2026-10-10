@@ -43,11 +43,13 @@ dsh plugin --profile web add dsh-memory-core
 plugins:
   - name: dsh-memory-core
     config:
-      path: ~/.dsh/memory-core.db   # 专用派生库
+      # path 可省略；需要隔离 profile 时设置绝对路径
       similarityThreshold: 0.9      # 相似合并阈值
       maxFacts: 50                  # 注入块事实上限
       sectionOrder: 50              # system prompt 内位置
 ```
+
+未配置 `path` 时复用当前目录已有的 `.dsh-verify/memory-core.db`，否则使用 `$DSH_HOME/memory-core.db`（未设置或为空时为 `~/.dsh`）。旧库中的普通记忆和固定记忆都保留原文件，不自动重建；迁移前应停止 DSH、备份数据库并配置绝对路径。持久库启用 WAL 和 5 秒锁等待。
 
 ## 模型视角
 

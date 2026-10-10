@@ -6,27 +6,27 @@ Eight community memory plugins for DeepSeek Harness (DSH): Chinese substring, mi
 
 Real engine output: supplementary Han queries of 1/2/3 code points, short-query fallback, ASCII and literal-wildcard controls. Supplementary Han is displayed as Unicode escapes for font compatibility; the engine queries the original code points. Generated from [the demo script](scripts/demo-cjk-search.mjs) using an in-memory index and a synthetic live session.
 
-[Full-host verification](docs/CJK-HOST-VERIFICATION.md) additionally covers real persistence, cold reboot, pagination and the Web UI. **97 unit tests and all 8 package checks pass.** macOS/Windows desktop shells await community validation.
+[CJK host verification](docs/CJK-HOST-VERIFICATION.md) additionally covers real persistence, cold reboot, pagination and the Web UI. [Full memory bundle verification](docs/MEMORY-HOST-VERIFICATION.md) covers installation, real-session recall, pinned facts, native skills and database integrity. **119 automated tests and all 8 package checks pass.** macOS/Windows desktop shells await community validation.
 
 > **Host requirement: DSH `>=0.1.5-rc.3 <0.3.0` (cordis `^4.0.1`), verified on 0.1.5-rc.3 and 0.2.0-rc.2.** `ctx.sessionQuery` is provided by this repo's CJK plugin as a **subclass** of upstream `SessionQueryEngine`, so it must resolve the *same* `@deepseek-ai/dsh-session-query` copy as the host — otherwise the host gets a service instance without `observeSession()`. See [issue #1](https://github.com/QIANLING-0831/dsh-memory-plus/issues/1) and the "host version contract" section of `packages/dsh-session-query-sqlite-cjk/README.md`.
 
 ---
 
-## Why this is not "yet another memory plugin"
+## When this bundle helps
 
-20+ memory plugins have appeared for DSH in the past six months (dsh-memory-evolve 205★ / dsh-mnemon 136★ / dsh-noema 116★ …). Most are single-purpose plugins, and almost all sit on top of the official `sessionQuery` service — whose `unicode61` tokenizer cannot segment Chinese, so **the entire ecosystem's Chinese recall is broken by one shared foundation bug**.
+Use this bundle when Chinese history is hard to search, details are hard to recover after compaction, or project rules have to be repeated in every new session. It connects retrieval, persistent facts and reusable skills to DSH's existing services.
 
-This repository is a **memory family bundle that fixes the foundation**:
+Main capabilities:
 
-1. **CJK search fix (unique in the ecosystem)** — trigram dual tables + a 1–2 char LIKE fallback; every memory plugin benefits (measured: 0 hits upstream → full hits with this bundle).
+1. **Chinese substring search** — trigram dual tables + a 1–2 char LIKE fallback, including mixed text and supplementary Han; see the query comparison below.
 2. **Skill self-evolution** — `skill_write/delete/list` plus a background reflection loop that distills reusable skills from finished turns (Hermes-style learning loop, zero request-path overhead).
 3. **A user layer the model cannot write** — skills and standing memories carry **provenance**; hand-written files and anything pinned with `/skill-pin` or `/memory-pin` are refused to model tools and to the background loop, and every refusal is written to an audit log.
 4. **A topic for mistakes** — `lesson` and `correction` are first-class fact topics, so "what went wrong" is not buried in `general`.
 5. **Token dedup** — hash-dedup of repeated tool results, saving input tokens.
 6. **KV-safe stable injection** — injection discipline derived from source-level findings (`buildRequest` deepFreeze / KV prefix-cache invalidation / persistent-log pollution).
-7. **Compaction provenance** — near-lossless summaries with exact source locators (spill path / file / seq range).
+7. **Compaction provenance** — source locators attached to summaries (spill path / file / seq range) help recover original details.
 
-Ecosystem survey (20+ projects, with license self-check): [`docs/DSH-MEMORY-ECOSYSTEM.md`](docs/DSH-MEMORY-ECOSYSTEM.md).
+Historical ecosystem survey and license checks: [`docs/DSH-MEMORY-ECOSYSTEM.md`](docs/DSH-MEMORY-ECOSYSTEM.md).
 
 ---
 
@@ -99,6 +99,8 @@ git clone https://github.com/QIANLING-0831/dsh-memory-plus.git
 cd dsh-memory-plus
 # Windows one-shot:
 .\scripts\install.ps1 -Profile headless
+# Linux/macOS:
+bash scripts/install.sh headless
 # or manually (local paths MUST carry the ./ prefix, otherwise pnpm treats
 # them as git specs; dsh and pnpm must be on PATH — pnpm can be shimmed via corepack):
 dsh plugin --profile <profile> add ./packages/dsh-memory-bundle
@@ -106,7 +108,13 @@ dsh plugin --profile <profile> add ./packages/dsh-memory-skills
 cd $env:DSH_HOME/profiles/<profile> && pnpm install
 ```
 
-Plugin defaults live in [`packages/dsh-memory-bundle/cordis.patch.yml`](packages/dsh-memory-bundle/cordis.patch.yml) (relative derived-DB paths — use absolute paths in production).
+Plugin defaults live in [`packages/dsh-memory-bundle/cordis.patch.yml`](packages/dsh-memory-bundle/cordis.patch.yml).
+
+All four database paths are optional. Explicit `config.path` wins; otherwise an existing `.dsh-verify/<name>.db` in the working directory is reused, falling back to `$DSH_HOME/<name>.db` (`~/.dsh` when `DSH_HOME` is unset or empty). Default paths become absolute at initialization. New installations do not create `.dsh-verify`; existing profile paths still work. Persistent databases use WAL and a 5-second busy timeout; CJK still honors an explicit `journalMode`.
+
+This path change reuses existing files without automatically moving or clearing memories. `memory-core.db` contains ordinary and pinned memories; `memory-skills.db` contains skill audit history and evolution progress. To move them, stop every DSH process using them, back up and move the databases with any remaining `-wal` / `-shm` files, then configure absolute paths in the profile patch. These records cannot be rebuilt from a search index. Set the old location explicitly before changing your working directory.
+
+New profiles under one `DSH_HOME` share databases unless absolute paths are overridden by plugin id. The standing-memory prompt cache detects writes by other connections. Instances sharing `memory-index.db` must use the same embedding model and `dims`.
 
 > **Host version requirement: DSH `>=0.1.5-rc.3 <0.3.0` (cordis `^4.0.1`), verified on 0.1.5-rc.3 and 0.2.0-rc.2.**
 > The `<0.3.0` upper bound is deliberate: DSH 0.2.0 added a hard pre-install/pre-boot peer gate (`evaluatePluginCompatibility`), and a declared range that does not match makes the whole tree refuse to load (issue #3). Only 0.1.5-rc.3 and 0.2.0-rc.2 have actually been exercised, so a future 0.3.0 should **fail loudly and be verified**, not be silently claimed compatible. See the "host version contract" section of [`packages/dsh-session-query-sqlite-cjk/README.md`](packages/dsh-session-query-sqlite-cjk/README.md).

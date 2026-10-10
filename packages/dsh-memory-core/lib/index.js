@@ -2,7 +2,8 @@ import { createHash, randomUUID } from "node:crypto";
 import { Service } from "@deepseek-ai/cordis";
 import z from "@deepseek-ai/schemastery";
 import { defineTool } from "@deepseek-ai/dsh-tools";
-import { mkdirSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
+import { homedir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 //#region lib/types/index.js
@@ -50,8 +51,9 @@ const DEFAULT_TOPICS = [
 ];
 /** Resolve and validate config with defaults. */
 function resolveConfig(config) {
+	const legacyPath = resolve(".dsh-verify/memory-core.db");
 	const resolved = {
-		path: config.path,
+		path: config.path ?? (existsSync(legacyPath) ? legacyPath : resolve(process.env.DSH_HOME || resolve(homedir(), ".dsh"), "memory-core.db")),
 		enabled: config.enabled ?? true,
 		similarityThreshold: config.similarityThreshold ?? 0.9,
 		maxFacts: config.maxFacts ?? 50,
@@ -131,7 +133,7 @@ export class MemoryCoreEngine extends Service {
 	static inject = ["systemPrompt"];
 	/** schemastery config schema. */
 	static Config = z.object({
-		path: z.string().required(),
+		path: z.string(),
 		enabled: z.boolean().default(true),
 		similarityThreshold: z.number().default(0.9),
 		maxFacts: z.number().step(1).min(1).default(50),
@@ -142,6 +144,7 @@ export class MemoryCoreEngine extends Service {
 	_db;
 	/** workspace → rendered block (invalidated on every write). */
 	_blockCache = /* @__PURE__ */ new Map();
+	_dataVersion;
 	/** Whether this open upgraded an older on-disk schema in place. */
 	migrated = false;
 	constructor(ctx, config) {
@@ -166,6 +169,8 @@ export class MemoryCoreEngine extends Service {
 		if (actual !== ":memory:") mkdirSync(dirname(actual), { recursive: true, mode: 448 });
 		const db = new DatabaseSync(actual);
 		try {
+			db.exec("PRAGMA busy_timeout = 5000");
+			db.exec("BEGIN IMMEDIATE");
 			const { application_id: applicationId } = db.prepare("PRAGMA application_id").get();
 			const { user_version: version } = db.prepare("PRAGMA user_version").get();
 			if (applicationId !== 0 && applicationId !== CORE_APPLICATION_ID) throw new Error(`dsh-memory-core: database at "${actual}" belongs to another application`);
@@ -173,6 +178,8 @@ export class MemoryCoreEngine extends Service {
 			if (applicationId === CORE_APPLICATION_ID && version > CORE_SCHEMA_VERSION) throw new Error(`dsh-memory-core: database at "${actual}" was written by a newer release (schema ${version} > ${CORE_SCHEMA_VERSION})`);
 			const migrated = applicationId === CORE_APPLICATION_ID ? migrateSchema(db, version) : false;
 			ensureSchema(db);
+			db.exec("COMMIT");
+			if (actual !== ":memory:") db.exec("PRAGMA journal_mode = WAL");
 			this.migrated = migrated;
 			return db;
 		} catch (error) {
@@ -291,6 +298,12 @@ export class MemoryCoreEngine extends Service {
 	}
 	/** Render the stable Markdown block for a workspace (empty when no facts). */
 	renderBlock(workspace) {
+		if (this._db === void 0) return "";
+		const { data_version: version } = this._db.prepare("PRAGMA data_version").get();
+		if (version !== this._dataVersion) {
+			this._blockCache.clear();
+			this._dataVersion = version;
+		}
 		const cached = this._blockCache.get(workspace);
 		if (cached !== void 0) return cached;
 		const facts = this.list(workspace, this.config.maxFacts);

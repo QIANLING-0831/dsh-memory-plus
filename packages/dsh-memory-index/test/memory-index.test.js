@@ -1,5 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fork } from "node:child_process";
+import { once } from "node:events";
+import { fileURLToPath } from "node:url";
 import CjkSessionQueryEngine from "dsh-session-query-sqlite-cjk";
 import MemorySearchEngine from "../lib/index.js";
 
@@ -41,12 +47,14 @@ const events = [
 const header = { version: 1, id: SESSION_ID, createdAt: NOW };
 
 function stubCtx() {
+	const session = { id: SESSION_ID, header, seq: events.length, inheritedEventCount: 0, snapshotEvents: () => events };
 	const sessions = {
-		list: () => [{ header, events }],
-		get: (id) => (id === SESSION_ID ? { header, events } : void 0)
+		list: () => [session],
+		get: (id) => (id === SESSION_ID ? session : void 0)
 	};
 	return {
 		reflect: { provide() {} },
+		get: (name) => name === "sessions" ? sessions : void 0,
 		sessions,
 		inject: () => ({ dispose() {} }),
 		effect: () => () => {},
@@ -103,6 +111,108 @@ test("incremental indexing embeds only new documents", async () => {
 	assert.equal(second, 0, "second index should embed nothing");
 });
 
+test("a live Session with only snapshotEvents is indexed and searchable", async () => {
+	const { memory, cjk, ctx } = await setup();
+	try {
+		const session = ctx.sessions.get(SESSION_ID);
+		assert.equal(session.events, void 0);
+		assert.equal(await memory.indexSession(session), events.length);
+		const hits = await memory.search({ sessionId: SESSION_ID, query: "中文分词" });
+		assert.ok(hits.some((hit) => hit.seq === 1));
+	} finally {
+		await memory.close();
+		await cjk.close();
+	}
+});
+
+test("overlapping index calls do not duplicate chunks or move last_seq backwards", async () => {
+	const dir = await mkdtemp(join(tmpdir(), "memory-concurrent-"));
+	const path = join(dir, "index.db");
+	const first = new MemorySearchEngine(stubCtx(), { path });
+	const second = new MemorySearchEngine(stubCtx(), { path });
+	try {
+		await first._ensureReady();
+		await second._ensureReady();
+		const counts = await Promise.all([
+			first.indexSession({ header, events }),
+			second.indexSession({ header, events: events.slice(0, 2) }),
+			first.indexSession({ header, events })
+		]);
+		assert.equal(counts.reduce((sum, count) => sum + count, 0), events.length);
+		assert.equal(first._db.prepare("SELECT count(*) AS n FROM chunks").get().n, events.length);
+		assert.equal(first._db.prepare("SELECT count(*) AS n FROM chunk_vec").get().n, events.length);
+		assert.equal(first._db.prepare("SELECT last_seq FROM session_index").get().last_seq, events.at(-1).seq);
+	} finally {
+		await first.close();
+		await second.close();
+		await rm(dir, { recursive: true, force: true });
+	}
+});
+
+test("independent processes can initialize together and wait for a writer before rechecking progress", { timeout: 10000 }, async () => {
+	const dir = await mkdtemp(join(tmpdir(), "memory-processes-"));
+	const path = join(dir, "index.db");
+	const workers = [0, 1].map(() => fork(fileURLToPath(new URL("./index-worker.mjs", import.meta.url)), [path, JSON.stringify({ header, events })], { silent: true, execArgv: [] }));
+	const exits = workers.map((worker) => once(worker, "exit"));
+	const engine = new MemorySearchEngine(stubCtx(), { path });
+	try {
+		const ready = await Promise.all(workers.map((worker) => once(worker, "message")));
+		assert.deepEqual(ready.map(([message]) => message), ["ready", "ready"]);
+		assert.equal(await engine.indexSession({ header, events }), events.length);
+		const results = workers.map((worker) => once(worker, "message"));
+		engine._db.exec("BEGIN IMMEDIATE");
+		try {
+			for (const worker of workers) worker.send("continue");
+			await new Promise((resolve) => setTimeout(resolve, 100));
+		} finally {
+			engine._db.exec("COMMIT");
+		}
+		assert.deepEqual((await Promise.all(results)).map(([message]) => message), [{ count: 0 }, { count: 0 }]);
+		assert.deepEqual(await Promise.all(exits), [[0, null], [0, null]]);
+		assert.equal(engine._db.prepare("SELECT count(*) AS n FROM chunks").get().n, events.length);
+	} finally {
+		for (const worker of workers) worker.kill();
+		await Promise.all(exits);
+		await engine.close();
+		await rm(dir, { recursive: true, force: true });
+	}
+});
+
+test("reindexing a changed header replaces both chunks and vectors atomically", async () => {
+	const { memory, cjk } = await setup();
+	try {
+		await memory.indexSession({ header, events });
+		const changed = { ...header, createdAt: NOW + 1 };
+		const embed = memory._embed;
+		memory._embed = async () => { throw new Error("embedding unavailable"); };
+		await assert.rejects(() => memory.indexSession({ header: changed, events }), /embedding unavailable/);
+		assert.equal(memory._db.prepare("SELECT count(*) AS n FROM chunks").get().n, events.length);
+		memory._embed = embed;
+		assert.equal(await memory.indexSession({ header: changed, events }), events.length);
+		assert.equal(memory._db.prepare("SELECT count(*) AS n FROM chunk_vec").get().n, events.length);
+	} finally {
+		await memory.close();
+		await cjk.close();
+	}
+});
+
+test("live indexing failures are logged without letting a broken logger escape", async () => {
+	const { memory, cjk, ctx } = await setup();
+	try {
+		ctx.sessions.get = () => ({ header, snapshotEvents: () => void 0 });
+		const warnings = [];
+		ctx.logger = { warn: (message) => warnings.push(message) };
+		assert.deepEqual(await memory.search({ sessionId: SESSION_ID, query: "中文" }), []);
+		assert.equal(warnings.length, 1);
+		assert.match(warnings[0], /memory-test/);
+		ctx.logger.warn = () => { throw new Error("logger failed"); };
+		assert.deepEqual(await memory.search({ sessionId: SESSION_ID, query: "中文" }), []);
+	} finally {
+		await memory.close();
+		await cjk.close();
+	}
+});
+
 test("snippets are bounded by maxChars", async () => {
 	const { memory } = await setup();
 	const hits = await memory.search({ sessionId: SESSION_ID, query: "分词", limit: 5 });
@@ -126,11 +236,12 @@ test("file-tag filter restricts hits to the touched file", async () => {
 		{ seq: 3, time: NOW + 300, type: "assistant/message", surfaceOp: "append", data: { message: { content: [{ type: "text", text: "好的，已读取" }] } } }
 	];
 	const fileHeader = { version: 1, id: "file-session", createdAt: NOW };
+	const session = { id: "file-session", header: fileHeader, seq: fileEvents.length, inheritedEventCount: 0, snapshotEvents: () => fileEvents };
 	const ctx = {
 		reflect: { provide() {} },
 		sessions: {
-			list: () => [{ header: fileHeader, events: fileEvents }],
-			get: (id) => (id === "file-session" ? { header: fileHeader, events: fileEvents } : void 0)
+			list: () => [session],
+			get: (id) => (id === "file-session" ? session : void 0)
 		},
 		inject: () => ({ dispose() {} }),
 		effect: () => () => {},

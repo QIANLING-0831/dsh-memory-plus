@@ -1,7 +1,9 @@
 import { Service } from "@deepseek-ai/cordis";
 import z from "@deepseek-ai/schemastery";
 import { load as loadVec } from "sqlite-vec";
+import { existsSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
+import { homedir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { buildSessionEventSearchDocuments } from "@deepseek-ai/dsh-session-query";
@@ -42,8 +44,9 @@ const MEMORY_SCHEMA_VERSION = 2;
 * @returns resolved config.
 */
 function resolveConfig(config) {
+	const legacyPath = resolve(".dsh-verify/memory-index.db");
 	const resolved = {
-		path: config.path,
+		path: config.path ?? (existsSync(legacyPath) ? legacyPath : resolve(process.env.DSH_HOME || resolve(homedir(), ".dsh"), "memory-index.db")),
 		dims: config.dims ?? 512,
 		topK: config.topK ?? 5,
 		lexicalTopK: config.lexicalTopK ?? 10,
@@ -137,7 +140,7 @@ export class MemorySearchEngine extends Service {
 	static inject = ["sessions", "sessionQuery"];
 	/** schemastery config schema. */
 	static Config = z.object({
-		path: z.string().required(),
+		path: z.string(),
 		dims: z.number().step(1).min(1).default(512),
 		topK: z.number().step(1).min(1).default(5),
 		lexicalTopK: z.number().step(1).min(1).default(10),
@@ -168,6 +171,8 @@ export class MemorySearchEngine extends Service {
 		if (actual !== ":memory:") await mkdir(dirname(actual), { recursive: true, mode: 448 });
 		const db = new DatabaseSync(actual, { allowExtension: true });
 		try {
+			db.exec("PRAGMA busy_timeout = 5000");
+			db.exec("BEGIN IMMEDIATE");
 			const { application_id: applicationId } = db.prepare("PRAGMA application_id").get();
 			const { user_version: version } = db.prepare("PRAGMA user_version").get();
 			if (applicationId !== 0 && applicationId !== MEMORY_APPLICATION_ID) throw new Error(`dsh-memory-index: database at "${actual}" belongs to another application`);
@@ -180,6 +185,8 @@ export class MemorySearchEngine extends Service {
 			}
 			loadVec(db);
 			ensureSchema(db, this.config.dims);
+			db.exec("COMMIT");
+			if (actual !== ":memory:") db.exec("PRAGMA journal_mode = WAL");
 			this._db = db;
 			this._embed = this.config.embedder.kind === "transformers" ? await createTransformersEmbedder(this.config.embedder) : createTestEmbedder(this.config.dims);
 		} catch (error) {
@@ -211,8 +218,7 @@ export class MemorySearchEngine extends Service {
 	}
 	/**
 	* Index a session's log incrementally: embed only documents with seq greater
-	* than the last indexed seq. Append-only assumption; a shrunk log triggers a
-	* full reindex of the session's rows.
+	* than the last indexed seq. A changed session header triggers a full reindex.
 	* @param session - live `Session` (or a `{ header, events }` snapshot from persistence).
 	* @returns the number of newly indexed documents.
 	*/
@@ -229,35 +235,42 @@ export class MemorySearchEngine extends Service {
 		const docs = buildSessionEventSearchDocuments(id, events);
 		const row = db.prepare("SELECT last_seq, header_fingerprint FROM session_index WHERE session_id = ?").get(id);
 		const headerFingerprint = fingerprintOf(session.header);
-		if (row !== void 0 && row.header_fingerprint !== headerFingerprint) {
-			db.prepare("DELETE FROM chunks WHERE session_id = ?").run(id);
-			db.prepare("DELETE FROM chunk_vec WHERE session_id = ?").run(id);
-			db.prepare("DELETE FROM session_index WHERE session_id = ?").run(id);
-		}
-		const lastSeq = row !== void 0 ? row.last_seq : -1;
+		const lastSeq = row?.header_fingerprint === headerFingerprint ? row.last_seq : -1;
 		const fresh = docs.filter((doc) => doc.seq > lastSeq);
-		if (fresh.length === 0) {
-			db.prepare("UPDATE session_index SET header_fingerprint = ? WHERE session_id = ?").run(headerFingerprint, id);
-			return 0;
-		}
+		if (fresh.length === 0 && row?.header_fingerprint === headerFingerprint) return 0;
 		const insertChunk = db.prepare("INSERT INTO chunks (session_id, seq, type, time, surface, text, files) VALUES (?, ?, ?, ?, ?, ?, ?)");
 		// node:sqlite binds JS numbers as REAL; sqlite-vec requires an INTEGER
 		// rowid, so the chunk id is CAST to INTEGER at bind time.
 		const insertVec = db.prepare("INSERT INTO chunk_vec (rowid, embedding) VALUES (CAST(? AS INTEGER), ?)");
 		// File-tag extraction: each tool/result carries the path of the nearest
 		// preceding tool/call (the entity index — "everything about src/a.ts").
-		const filesBySeq = fileTagsBySeq(session.events);
+		const filesBySeq = fileTagsBySeq(events);
 		const texts = fresh.map((doc) => `${this._contextPrefix(doc)}${doc.text}`);
 		const vectors = await this._embedTexts(texts);
+		let inserted = 0;
 		db.exec("BEGIN IMMEDIATE");
 		try {
+			// Embedding yields: another caller or process may have indexed these events.
+			const current = db.prepare("SELECT last_seq, header_fingerprint FROM session_index WHERE session_id = ?").get(id);
+			if (current !== void 0 && current.header_fingerprint !== headerFingerprint) {
+				if (fresh.length !== docs.length) {
+					// The header changed while embedding; retry with a complete snapshot.
+					db.exec("ROLLBACK");
+					return this.indexSession(session);
+				}
+				db.prepare("DELETE FROM chunk_vec WHERE rowid IN (SELECT chunk_id FROM chunks WHERE session_id = ?)").run(id);
+				db.prepare("DELETE FROM chunks WHERE session_id = ?").run(id);
+			}
+			const currentLastSeq = current?.header_fingerprint === headerFingerprint ? current.last_seq : -1;
 			for (let i = 0; i < fresh.length; i += 1) {
 				const doc = fresh[i];
+				if (doc.seq <= currentLastSeq) continue;
 				const files = doc.type === "tool/result" ? filesBySeq.get(doc.seq) ?? [] : [];
 				const { lastInsertRowid } = insertChunk.run(id, doc.seq, doc.type, doc.time, doc.surface, doc.text, JSON.stringify(files));
 				insertVec.run(Number(lastInsertRowid), vectorToText(vectors[i]));
+				inserted += 1;
 			}
-			const maxSeq = fresh[fresh.length - 1].seq;
+			const maxSeq = Math.max(currentLastSeq, fresh.at(-1)?.seq ?? -1);
 			db.prepare(`
         INSERT INTO session_index (session_id, last_seq, header_fingerprint) VALUES (?, ?, ?)
         ON CONFLICT (session_id) DO UPDATE SET last_seq = excluded.last_seq, header_fingerprint = excluded.header_fingerprint
@@ -267,7 +280,7 @@ export class MemorySearchEngine extends Service {
 			db.exec("ROLLBACK");
 			throw error;
 		}
-		return fresh.length;
+		return inserted;
 	}
 	/** Ensure the session's live log is fully indexed before a search. */
 	async _ensureSessionIndexed(sessionId) {
@@ -319,6 +332,11 @@ export class MemorySearchEngine extends Service {
 			signal?.throwIfAborted();
 		} catch (error) {
 			if (isAbort(error)) throw error;
+			try {
+				this.ctx.logger?.warn?.(`memory-index: could not search session ${sessionId}: ${error instanceof Error ? error.message : String(error)}`);
+			} catch {
+				/* a broken logger must never mask the original failure */
+			}
 			return [];
 		}
 		// Lexical arm — best-effort; the CJK-aware provider searches all

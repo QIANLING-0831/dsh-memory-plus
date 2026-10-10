@@ -50,6 +50,24 @@ test("remember stores a fact and list returns it", async () => {
 	assert.equal(facts[0].topic, "preference");
 });
 
+test("a cached prompt notices writes and deletions from another database connection", async () => {
+	const dir = mkdtempSync(join(tmpdir(), "memory-shared-"));
+	const path = join(dir, "core.db");
+	const reader = new MemoryCoreEngine(stubCtx(), { path });
+	const writer = new MemoryCoreEngine(stubCtx(), { path });
+	try {
+		assert.equal(reader.renderBlock(dir), "");
+		const { factId } = await writer.remember({ workspace: dir, content: "用户要求部署前备份" }, { actor: "human", pinned: true });
+		assert.match(reader.renderBlock(dir), /用户要求部署前备份/);
+		await writer.forget(factId, { actor: "human" });
+		assert.equal(reader.renderBlock(dir), "");
+	} finally {
+		await reader.close();
+		await writer.close();
+		rmSync(dir, { recursive: true, force: true });
+	}
+});
+
 test("hash dedup updates instead of duplicating", async () => {
 	const { engine } = await setup();
 	const first = await engine.remember({ workspace: "C:\\ws", content: "使用 pnpm 管理依赖" });

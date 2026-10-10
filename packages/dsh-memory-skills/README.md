@@ -65,7 +65,7 @@ metadata:
 
 | Key | 默认 | 说明 |
 |---|---|---|
-| `path` | `$DSH_HOME/memory-skills.db` | 派生库（进化状态 + 事件日志），`:memory:` 支持 |
+| `path` | `$DSH_HOME/memory-skills.db` | 当前目录已有 `.dsh-verify/memory-skills.db` 时复用旧库，保留进化状态与事件日志；`:memory:` 支持 |
 | `skillDir` | `$DSH_HOME/skills` | 技能文件目录（DSH filesystem provider 的 user-dsh 根） |
 | `enabled` | `true` | 总开关（工具 + 进化） |
 | `maxSkills` | `50` | 托管技能上限（不含用户手写文件） |

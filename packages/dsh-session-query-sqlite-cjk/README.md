@@ -66,7 +66,7 @@ CJK 检测包含 Unicode `Script=Han`（包括扩展平面的汉字，如 `𠀀`
 
 | Key | 默认 | 说明 |
 |---|---|---|
-| `path` | 必填 | 专用派生索引 SQLite 路径（`:memory:` 支持） |
+| `path` | `$DSH_HOME/session-query-cjk.db` | 当前目录已有 `.dsh-verify/session-query-cjk.db` 时复用旧库；支持显式绝对路径与 `:memory:` |
 | `openAt` | `startup` | `startup` / `first-search` / `never` |
 | `journalMode` | `wal` | `wal` / `delete` / `truncate` / `persist` |
 | `defaultLimit` / `maxLimit` | `20` / `100` | 分页 |

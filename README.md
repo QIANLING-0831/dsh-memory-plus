@@ -6,7 +6,7 @@
 
 <p align="center">真实搜索引擎输出 · 扩展汉字 1／2／3 码点 · 短查询回退 · ASCII 与通配符对照</p>
 
-扩展汉字以 Unicode 转义显示，避免字体缺字；实际查询使用原始码点。演示使用内存索引和合成会话，由 [演示脚本](scripts/demo-cjk-search.mjs) 的实际输出生成。[完整宿主验证](docs/CJK-HOST-VERIFICATION.md)另覆盖真实持久化、冷重启、分页和 Web 界面；97 项单测、8 个包检查通过，macOS／Windows 桌面壳尚待社区验证。
+扩展汉字以 Unicode 转义显示，避免字体缺字；实际查询使用原始码点。演示使用内存索引和合成会话，由 [演示脚本](scripts/demo-cjk-search.mjs) 的实际输出生成。[CJK 宿主验证](docs/CJK-HOST-VERIFICATION.md)覆盖真实持久化、冷重启、分页和 Web 界面；[完整记忆套件验证](docs/MEMORY-HOST-VERIFICATION.md)覆盖安装、真实会话召回、固定记忆、原生技能和数据库完整性。119 项自动测试、8 个包检查通过，macOS／Windows 桌面壳尚待社区验证。
 
 <p align="center"><img src="https://img.shields.io/badge/docs-%E4%B8%AD%E6%96%87-22d3ee?style=flat-square&amp;labelColor=172033" alt="docs: 中文"> <img src="https://img.shields.io/badge/maintainer-QIANLING--0831-22d3ee?style=flat-square&amp;labelColor=172033" alt="maintainer: QIANLING-0831"> </p>
 
@@ -28,21 +28,21 @@ DeepSeek Harness（DSH）的社区记忆插件集，共 8 个包：让中文子�
 
 ---
 
-## 0. 为什么不是"第 16 个记忆插件"
+## 0. 适合什么场景
 
-DSH 记忆插件半年内涌现 20+（dsh-memory-evolve 205⭐ / dsh-mnemon 136⭐ / dsh-noema 116⭐ …），但绝大多数是**单点功能插件**，且几乎都建立在官方 `sessionQuery` 之上——而官方 unicode61 的中文缺陷意味着**整个生态的中文召回都是坏的**。
+如果你遇到中文历史难以搜索、压缩后细节难找回，或每个新会话都要重新说明项目规则，这套插件把检索、常驻事实和可复用技能接到 DSH 的现有服务中。
 
-本仓库的定位是**记忆全家桶 + 修地基**：
+主要能力：
 
-1. **CJK 检索修复（生态唯一）**：trigram 双表 + 1–2 字 LIKE 回退——20+ 记忆插件共同受益（实测 0 命中 → 全命中）；
+1. **中文子串检索**：trigram 双表 + 1–2 字 LIKE 回退，支持中英混排与扩展汉字；具体查询对照见下文；
 2. **技能自我进化**：`skill_write/delete/list` + 后台反思蒸馏（Hermes 式学习循环，请求路径零开销）；
 3. **用户专属层（模型写不到）**：技能与常驻记忆都带**来源 provenance**；用户手写/`/skill-pin` `/memory-pin` 固定的内容，模型工具与后台进化一律拒绝改写，拒绝还进审计日志；
 4. **按场景区分的记忆**：事实 / 约定 / 环境 / 决策之外，`lesson` `correction` 是正式分类（"哪里错了"不被埋进 general）；
 5. **Token 去重**：工具结果哈希去重，纯省输入 Token；
 6. **KV-safe 稳定注入**：基于源码级验证（`buildRequest` deepFreeze / KV 前缀缓存 / 持久化路径）的注入纪律；
-7. **compaction 来源定位**：近无损压缩 + 摘要可溯源。
+7. **compaction 来源定位**：为压缩摘要附上原始事件和文件定位符，便于追溯细节。
 
-生态盘点（20+ 项目对照表 + license 自查）：[`docs/DSH-MEMORY-ECOSYSTEM.md`](docs/DSH-MEMORY-ECOSYSTEM.md)。
+历史生态调研与 license 核对：[`docs/DSH-MEMORY-ECOSYSTEM.md`](docs/DSH-MEMORY-ECOSYSTEM.md)。
 
 ---
 
@@ -130,14 +130,15 @@ Stage 3  合并候选 → 已在上下文的替换为指针 → 预算裁剪
 
 > **尚未发布到 npm**。三种方式均可下载/安装；Release 源码包见 [Releases](https://github.com/QIANLING-0831/dsh-memory-plus/releases)（Source code zip）。
 
-### 方式一：克隆 + 一键脚本（推荐，已验证）
+### 方式一：克隆 + 一键脚本（推荐）
 
 ```sh
 git clone https://github.com/QIANLING-0831/dsh-memory-plus.git
 cd dsh-memory-plus
 # Windows：
 .\scripts\install.ps1 -Profile headless
-# Linux/macOS：等价命令见 scripts/ 目录
+# Linux/macOS：
+bash scripts/install.sh headless
 ```
 
 ### 方式二：克隆 + 手动安装
@@ -159,7 +160,15 @@ cd $env:DSH_HOME/profiles/<profile> && pnpm install
 
 到 [Releases](https://github.com/QIANLING-0831/dsh-memory-plus/releases) 下载 `Source code (zip)` → 解压 → 按方式二从解压目录安装。
 
-安装后各插件默认配置见 [`packages/dsh-memory-bundle/cordis.patch.yml`](packages/dsh-memory-bundle/cordis.patch.yml)（派生库路径为相对路径，生产建议改绝对路径）。生产嵌入需在 `memory-index` 配置 `embedder.kind: transformers` 并安装 `@huggingface/transformers`（当前默认 `char-overlap` 评估嵌入；国内模型下载用 `remoteHost: https://hf-mirror.com`）。
+安装后各插件默认配置见 [`packages/dsh-memory-bundle/cordis.patch.yml`](packages/dsh-memory-bundle/cordis.patch.yml)。生产嵌入需在 `memory-index` 配置 `embedder.kind: transformers` 并安装 `@huggingface/transformers`（当前默认 `char-overlap` 评估嵌入；国内模型下载用 `remoteHost: https://hf-mirror.com`）。
+
+### 数据库位置与升级
+
+四个数据库的 `path` 都可省略，优先级为：显式配置 → 当前工作目录已有的 `.dsh-verify/<name>.db` → `$DSH_HOME/<name>.db`（`DSH_HOME` 未设置或为空时用 `~/.dsh`）。默认路径在插件初始化时解析成绝对路径；新安装不会创建 `.dsh-verify`。已有 profile 的显式路径继续生效；此次路径调整复用旧文件，不自动搬移或清空已有记忆。持久数据库启用 WAL 和 5 秒锁等待；CJK 包仍支持显式 `journalMode`。
+
+`memory-core.db` 保存普通记忆和用户固定记忆，`memory-skills.db` 保存技能审计日志与进化进度，不能当作可丢弃的索引。若需要把旧库集中到 `$DSH_HOME`，先停止使用这些库的所有 DSH 进程，再备份并迁移数据库及尚存在的 `-wal` / `-shm` 文件，最后在 profile 的 patch 中设置绝对 `config.path`。不要只删旧路径后指望记忆自动重建。更换启动目录前，也应将旧库路径设为绝对路径。
+
+同一 `$DSH_HOME` 下的新 profile 默认共享数据库；需要隔离时按插件 id 覆盖绝对 `config.path`。常驻记忆的提示缓存会在其他连接写入后失效。共享 `memory-index.db` 的实例须使用相同的嵌入模型与 `dims`。
 
 ---
 
@@ -225,10 +234,10 @@ cd $env:DSH_HOME/profiles/<profile> && pnpm install
 
 ```sh
 corepack pnpm install
-corepack pnpm test        # 97 个单测（node --test，7 个包：CJK 27 / core 19 / skills 20 / 混合检索 8 / 工具 8 / 压缩 8 / 去重 7）
+corepack pnpm test        # 119 项自动测试，包含多进程数据库与安装脚本回归
 ```
 
-> 在受限沙箱里跑（例如从 DSH 的 workspace-write 会话内）时，`node --test` 的每文件子进程会被沙箱拦住（`spawn EPERM`）；改用 `node --test --experimental-test-isolation=none <files>` 在单进程内跑同样的用例即可，结果一致（97/97）。
+> 若受限沙箱拦截测试文件的子进程（`spawn EPERM`），可尝试 `corepack pnpm test:single`。多进程数据库与安装脚本测试仍需创建子进程；如果沙箱也拦截它们，应在允许测试子进程的环境运行完整套件。
 
 每个插件遵循 DSH 插件形态（`name` / `inject` / `Config` / `apply`，或 Service 类 + `super(ctx, name)`），测试覆盖检索、去重、压缩定位符、事实库、技能管理与后台进化等核心逻辑。
 

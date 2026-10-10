@@ -23,7 +23,7 @@ dsh plugin --profile web add dsh-memory-index               # 本服务
 plugins:
   - name: dsh-memory-index
     config:
-      path: ~/.dsh/memory-index.db   # 专用派生库，单一 owner
+      # path 可省略；需要隔离 profile 时设置绝对路径
       dims: 512
       topK: 5
       maxChars: 2000
@@ -36,14 +36,16 @@ plugins:
 - `embedder.kind: "char-overlap"`（默认）：确定性字符重叠嵌入，**离线评估用，非生产**；
 - `kind: "transformers"`：需额外安装 `@huggingface/transformers`（可选依赖，首次运行下载 ONNX 模型约 100MB）。
 
+未配置 `path` 时复用当前目录已有的 `.dsh-verify/memory-index.db`，否则使用 `$DSH_HOME/memory-index.db`（未设置或为空时为 `~/.dsh`）。持久库启用 WAL 和 5 秒锁等待；并发索引在写入事务内复核进度，避免重复插入。共享数据库时使用相同的模型与 `dims`。
+
 ## 已知坑（已踩实）
 
 1. **node:sqlite 必须 `new DatabaseSync(path, { allowExtension: true })`** 否则 `loadExtension` 报 "extension loading is not allowed"；
 2. **node:sqlite 把 JS number 绑定为 REAL**，sqlite-vec 的 rowid 要求 INTEGER → 插入用 `CAST(? AS INTEGER)`（或 BigInt）；
 3. FTS5 `highlight()` 不接受 schema 限定表名（`temp.live_docs` 会被当列名）——见 CJK 包；
-4. **活 `Session` 没有 `events` 数组**：0.1.0 线只有 `events` getter，0.1.1+ 改成 `snapshotEvents()`。`indexSession` 必须 `session.events ?? session.snapshotEvents()`，否则拿到 `undefined`、fold 抛错，而 `search()` 的 best-effort `catch` 会把它变成"永远 0 命中"——症状与"没有匹配"完全一样。为什么之前单测没抓住：stub 手工构造了 `{ header, events }`，用测试假设替代了真机契约；
+4. **活 `Session` 没有 `events` 数组**：0.1.0 线只有 `events` getter，0.1.1+ 改成 `snapshotEvents()`。文档构建与文件标签提取必须使用同一份归一化后的 `events`，否则仍会抛错并被 `search()` 吞成空结果。测试 stub 只暴露真实的 `snapshotEvents()` 契约，避免再次漏修；
 5. **`readSession()` 的返回里 header 字段名是 `session`**（不是 `header`）：`{ session, inheritedEventCount, events }`，取错会拿到 `undefined` 并在 `session.header` 上抛错——同样被上面那个 catch 吞掉。本包用 `loaded.session ?? loaded.header` 兼容两代；
-6. **best-effort 不等于静默**：`_ensureSessionIndexed` 的 catch 现在会 `logger.warn`，检索失败也带 stack 输出；否则"链路坏了"永远无法与"没命中"区分。
+6. **best-effort 不等于静默**：活会话检索与持久化索引失败都会 `logger.warn`，包含会话 id 和错误信息；logger 自身抛错也不会破坏检索调用。
 
 ## 测试
 

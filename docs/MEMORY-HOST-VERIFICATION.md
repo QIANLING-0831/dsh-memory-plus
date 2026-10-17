@@ -50,3 +50,13 @@ node .dsh-verify/host-rc2/verify-memory-profile.mjs "$verify_home"
 - 打包回归检查七个实现入口逐字一致、patch 子路径、MIT 许可证、无本地依赖协议、外部运行依赖、宿主 peer 与 SHA256SUMS。
 
 macOS / Windows 的安装与桌面壳尚未实机复跑；真实嵌入模型下载未在本次验证中覆盖。
+
+### 公开 Release URL 复测
+
+[v0.2.2 发布流程](https://github.com/QIANLING-0831/dsh-memory-plus/actions/runs/39018044126) 在 123 项测试和 8 个包检查全部通过后发布 `.tgz` 与 `SHA256SUMS`。随后再次使用全新的临时 `DSH_HOME`，直接运行：
+
+```sh
+dsh plugin --profile web add https://github.com/QIANLING-0831/dsh-memory-plus/releases/download/v0.2.2/dsh-memory-bundle-0.2.2.tgz
+```
+
+命令退出码为 0，profile 的 dependencies 仅有指向公开 URL 的 `dsh-memory-bundle`。没有运行额外 `pnpm install` 或逐包添加命令。对该安装再次执行 `verify-memory-profile.mjs`，首次启动、冷重启、四个默认数据库路径、WAL 和 SQLite 完整性检查全部通过。源码 checkout 不参与运行时解析。

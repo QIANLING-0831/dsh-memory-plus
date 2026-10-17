@@ -36,3 +36,18 @@ node .dsh-verify/host-rc2/verify-memory-profile.mjs "$verify_home"
 ## 范围
 
 验证使用真实宿主服务、插件 Loader、会话持久化与原生技能 provider，不调用付费模型或需要 API Key。后台技能进化的模型判断和压缩摘要生成由自动测试覆盖，本次没有在线模型端到端验证。macOS/Windows 桌面壳仍需对应平台测试。CJK Web 界面的既有验证记录见 [CJK 宿主验证](CJK-HOST-VERIFICATION.md)。
+
+
+## 一条命令安装回归（2026-10-17）
+
+针对 awesome-dsh-plugin/awesome-dsh-plugin#7186 的安装反馈，新增 `scripts/bootstrap.sh`。中英文 README 的命令将引导脚本和下载源码锁定到 `8eff28443763a299ffddf23b71f84b3dd48987a3`；workspace 依赖以 `pnpm install --frozen-lockfile` 安装。无需预先 clone，也无需手动逐包注册。
+
+在 Linux x64、Node 24.21.0、Corepack / pnpm 12.10.1、发布的 DSH 0.2.0-rc.2 上，从 GitHub raw URL 下载并执行 README 的完整命令（末尾 profile 改为 `web`，`DSH_HOME` 指向全新的临时目录），结果：
+
+- Git 下载指定完整 SHA，源码保留在该 home 的 `plugins/` 下。
+- 自动安装 workspace、bundle、七个实现包及 profile 依赖，退出码为 0。
+- 用本仓库 `scripts/verify-memory-profile.mjs` 对安装后的真实宿主复跑：首次启动及冷重启的中文检索、混合召回、常驻事实、固定保护、原生技能与审计均通过。
+- 四个默认数据库路径、WAL 与 SQLite 完整性检查通过。
+- 全套 122 项自动测试及 8 个包检查通过；引导脚本测试覆盖固定 SHA、拒绝浮动分支、下载失败后停止。
+
+本次新增的一条命令入口仅验证 Linux；适用于 Bash 环境，macOS 尚未实机复跑，Windows 保留已有 PowerShell 方式。源码目录是运行时链接目标，不能删除。仓库锁文件不锁定用户既有 profile 的宿主依赖；宿主版本仍需符合包的 peer 范围。

@@ -6,7 +6,7 @@
 
 <p align="center">真实搜索引擎输出 · 扩展汉字 1／2／3 码点 · 短查询回退 · ASCII 与通配符对照</p>
 
-扩展汉字以 Unicode 转义显示，避免字体缺字；实际查询使用原始码点。演示使用内存索引和合成会话，由 [演示脚本](scripts/demo-cjk-search.mjs) 的实际输出生成。[CJK 宿主验证](docs/CJK-HOST-VERIFICATION.md)覆盖真实持久化、冷重启、分页和 Web 界面；[完整记忆套件验证](docs/MEMORY-HOST-VERIFICATION.md)覆盖安装、真实会话召回、固定记忆、原生技能和数据库完整性。122 项自动测试、8 个包检查通过，macOS／Windows 桌面壳尚待社区验证。
+扩展汉字以 Unicode 转义显示，避免字体缺字；实际查询使用原始码点。演示使用内存索引和合成会话，由 [演示脚本](scripts/demo-cjk-search.mjs) 的实际输出生成。[CJK 宿主验证](docs/CJK-HOST-VERIFICATION.md)覆盖真实持久化、冷重启、分页和 Web 界面；[完整记忆套件验证](docs/MEMORY-HOST-VERIFICATION.md)覆盖安装、真实会话召回、固定记忆、原生技能和数据库完整性。123 项自动测试、8 个包检查通过，macOS／Windows 桌面壳尚待社区验证。
 
 <p align="center"><img src="https://img.shields.io/badge/docs-%E4%B8%AD%E6%96%87-22d3ee?style=flat-square&amp;labelColor=172033" alt="docs: 中文"> <img src="https://img.shields.io/badge/maintainer-QIANLING--0831-22d3ee?style=flat-square&amp;labelColor=172033" alt="maintainer: QIANLING-0831"> </p>
 
@@ -128,19 +128,17 @@ Stage 3  合并候选 → 已在上下文的替换为指针 → 预算裁剪
 
 ## 4. 安装
 
-> **尚未发布到 npm**。推荐使用下面锁定提交的一条命令；无需手动 clone 或逐包安装。
-
-### 方式一：一条命令安装（Linux/macOS，推荐）
-
-前置条件：Bash、curl、Git、Node.js 24、兼容版本的 `dsh`，以及 pnpm 或 Corepack 均在 PATH。
+### 方式一：安装版本化 Release 包（推荐）
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/QIANLING-0831/dsh-memory-plus/8eff28443763a299ffddf23b71f84b3dd48987a3/scripts/bootstrap.sh | bash -s -- 8eff28443763a299ffddf23b71f84b3dd48987a3 headless
+dsh plugin --profile headless add https://github.com/QIANLING-0831/dsh-memory-plus/releases/download/v0.2.2/dsh-memory-bundle-0.2.2.tgz
 ```
 
-脚本与源码均锁定到同一个完整提交 SHA，仓库依赖使用 `pnpm install --frozen-lockfile`。脚本自动下载完整 workspace、安装依赖、把 bundle 和七个实现包加入 `headless` profile，再安装 profile 依赖。把命令末尾的 `headless` 改成 `web` 可安装到 Web profile。
+需要 Node.js 24、兼容版本的 `dsh`，以及 PATH 上可用的 pnpm。将 `headless` 改成 `web` 可安装到 Web profile。
 
-源码保留在 `${DSH_HOME:-$HOME/.dsh}/plugins/dsh-memory-plus-<commit>.<suffix>`，运行时通过本地链接加载，**安装后不要删除该目录**。重复运行会保留一份新的 checkout 并更新目标 profile 的链接；不会自动升级旧 checkout。profile 的宿主依赖由已安装的 DSH 决定，不在仓库锁文件的锁定范围内。
+Release 包内含 bundle patch 和七个插件的实现代码，通过 bundle 的子路径导出加载；安装时只需添加这一个包，DSH 会自动安装其外部依赖。包内没有 `workspace:` / `file:` / `link:` 依赖，无需 clone 源码、逐包注册或另跑 `pnpm install`，也不依赖本地源码目录。固定版本 URL 对应 [v0.2.2 Release](https://github.com/QIANLING-0831/dsh-memory-plus/releases/tag/v0.2.2)，同时提供 `SHA256SUMS`。
+
+尚未发布到 npm；这里使用的是可直接安装的 `.tgz` 资产，而不是 GitHub 自动生成的 Source code 压缩包。
 
 ### 方式二：从已有 checkout 安装（含 Windows）
 
@@ -246,7 +244,7 @@ cd $env:DSH_HOME/profiles/<profile> && pnpm install
 
 ```sh
 corepack pnpm install
-corepack pnpm test        # 122 项自动测试，包含多进程数据库与安装脚本回归
+corepack pnpm test        # 123 项自动测试，包含多进程数据库与安装脚本回归
 ```
 
 > 若受限沙箱拦截测试文件的子进程（`spawn EPERM`），可尝试 `corepack pnpm test:single`。多进程数据库与安装脚本测试仍需创建子进程；如果沙箱也拦截它们，应在允许测试子进程的环境运行完整套件。
@@ -257,13 +255,10 @@ corepack pnpm test        # 122 项自动测试，包含多进程数据库与安
 
 ## 8. 发布状态
 
-- **尚未发布到 npm，请以 Git 方式安装**（上面的安装章节）。截至 2026-09-30 实测：`dsh-memory-bundle` 在 npmjs.org 上不可用（2026-09-15 被 unpublish，当前 name owner 是另一个 npm 账号），其余 7 个包从未发布过。
-- `.github/workflows/publish.yml` 是 tag 触发（`v*`）的发布流水线，**目前会在“Publish packages”这一步失败**——因为仓库里既没有 `NPM_TOKEN` secret，npm 侧也没为各包配置 Trusted Publisher。v0.1.0 与 v0.2.0 两次 tag 都是同一原因（红叉是预期状态，不影响任何人的 git 安装）。
-- 要打通发布链路，二选一：
-  1. **Trusted Publishing（推荐，无长期令牌）**：先在本地用有权限的账号手动 `pnpm -r publish --access public` 建出各包，再到 npmjs.org 每个包的 Settings → Trusted Publishers 添加本仓库 + workflow 名 `publish`；
-  2. **令牌**：在仓库 Secrets 添加 `NPM_TOKEN`（granular token，需 publish 权限），`publish.yml` 会自动使用。
-- 流水线现在带两道自检：发布前先确认存在可用凭证（否则**明确报错**而不是含糊失败），发布后逐个 `npm view` 校验每个包的版本真的上了 registry（`pnpm -r publish` 对“版本已存在”会报成功但实际没上传）。
-- deepseek-ai/deepseek-harness 官方仓库暂不接受外部 PR，本仓库以独立插件生态方式贡献；上游 `unicode61` 中文检索缺陷可在官方 Discussions 反馈。
+- **推荐安装版本化 Release 资产**：见上面的单条 `dsh plugin add` 命令。bundle 内含全部七个实现插件。
+- **尚未发布到 npm**；安装不依赖这些插件名在 npm 上是否可用。
+- `node scripts/pack-release.mjs` 生成独立 bundle `.tgz` 与 `SHA256SUMS`，默认输出到 `.dsh-verify/release/`。打包过程保留各插件的 MIT 许可证，合并外部依赖与宿主 peer 声明；不打包宿主副本或平台原生二进制，`sqlite-vec` 由包管理器按平台安装。
+- `.github/workflows/publish.yml` 在 `v*` tag 上运行完整测试和包检查，再生成并发布 GitHub Release 资产；不需要 npm 发布凭证。
 
 ---
 

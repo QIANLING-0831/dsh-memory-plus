@@ -6,7 +6,7 @@ Eight community memory plugins for DeepSeek Harness (DSH): Chinese substring, mi
 
 Real engine output: supplementary Han queries of 1/2/3 code points, short-query fallback, ASCII and literal-wildcard controls. Supplementary Han is displayed as Unicode escapes for font compatibility; the engine queries the original code points. Generated from [the demo script](scripts/demo-cjk-search.mjs) using an in-memory index and a synthetic live session.
 
-[CJK host verification](docs/CJK-HOST-VERIFICATION.md) additionally covers real persistence, cold reboot, pagination and the Web UI. [Full memory bundle verification](docs/MEMORY-HOST-VERIFICATION.md) covers installation, real-session recall, pinned facts, native skills and database integrity. **122 automated tests and all 8 package checks pass.** macOS/Windows desktop shells await community validation.
+[CJK host verification](docs/CJK-HOST-VERIFICATION.md) additionally covers real persistence, cold reboot, pagination and the Web UI. [Full memory bundle verification](docs/MEMORY-HOST-VERIFICATION.md) covers installation, real-session recall, pinned facts, native skills and database integrity. **123 automated tests and all 8 package checks pass.** macOS/Windows desktop shells await community validation.
 
 > **Host requirement: DSH `>=0.1.5-rc.3 <0.3.0` (cordis `^4.0.1`), verified on 0.1.5-rc.3 and 0.2.0-rc.2.** `ctx.sessionQuery` is provided by this repo's CJK plugin as a **subclass** of upstream `SessionQueryEngine`, so it must resolve the *same* `@deepseek-ai/dsh-session-query` copy as the host — otherwise the host gets a service instance without `observeSession()`. See [issue #1](https://github.com/QIANLING-0831/dsh-memory-plus/issues/1) and the "host version contract" section of `packages/dsh-session-query-sqlite-cjk/README.md`.
 
@@ -92,15 +92,15 @@ Stage 3  merge candidates → pointers for already-visible items → budget trim
 
 ## 4. Install
 
-Not yet published to npm. On Linux/macOS, install all eight packages with one command (no manual clone or per-package commands):
+Install the versioned Release bundle with one command:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/QIANLING-0831/dsh-memory-plus/8eff28443763a299ffddf23b71f84b3dd48987a3/scripts/bootstrap.sh | bash -s -- 8eff28443763a299ffddf23b71f84b3dd48987a3 headless
+dsh plugin --profile headless add https://github.com/QIANLING-0831/dsh-memory-plus/releases/download/v0.2.2/dsh-memory-bundle-0.2.2.tgz
 ```
 
-Requires Bash, curl, Git, Node.js 24, a compatible `dsh`, and pnpm or Corepack on PATH. Both the bootstrap script and checkout are pinned to the same full commit SHA; workspace dependencies use `pnpm install --frozen-lockfile`. The script downloads the workspace, installs its dependencies, adds the bundle and seven implementation packages, and installs profile dependencies. Replace the final `headless` with `web` for the Web profile.
+Requires Node.js 24, a compatible DSH, and pnpm on PATH. Replace `headless` with `web` for a Web profile. The `.tgz` contains the patch and all seven plugin implementations, exposed as bundle subpaths. DSH installs external dependencies automatically: no source checkout, per-package registration, separate `pnpm install`, or retained source directory is required. The package has no `workspace:`, `file:` or `link:` dependencies.
 
-The checkout stays in `${DSH_HOME:-$HOME/.dsh}/plugins/dsh-memory-plus-<commit>.<suffix>`: **keep this directory**, because the profile links to it at runtime. Re-running keeps a new checkout and updates the target profile links; it does not upgrade old checkouts automatically. Profile host dependencies depend on your installed DSH and are outside the workspace lockfile.
+The fixed URL points to the installable asset in [v0.2.2](https://github.com/QIANLING-0831/dsh-memory-plus/releases/tag/v0.2.2), with a `SHA256SUMS` file. It is not the automatically generated Source code archive. These packages are not published to npm. `node scripts/pack-release.mjs` rebuilds the standalone tarball; the tag workflow tests and publishes Release assets without npm credentials.
 
 From an existing checkout, use `bash scripts/install.sh headless` (Linux/macOS) or `.\scripts\install.ps1 -Profile headless` (Windows/PowerShell).
 

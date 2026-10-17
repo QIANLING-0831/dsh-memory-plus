@@ -28,7 +28,7 @@ command -v pnpm >/dev/null 2>&1 || {
 
 printf 'Installing dsh-memory for profile %s\n' "$profile"
 # Linked plugins resolve their runtime dependencies from this checkout.
-(cd -- "$root" && pnpm install)
+(cd -- "$root" && pnpm install --frozen-lockfile)
 dsh plugin --profile "$profile" add "$root/packages/dsh-memory-bundle"
 packages=(
     dsh-session-query-sqlite-cjk dsh-tool-result-dedup dsh-memory-index

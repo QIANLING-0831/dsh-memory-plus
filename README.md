@@ -1,16 +1,28 @@
-<h1 align="center">DSH Memory Plus · 中文检索与跨会话记忆</h1>
+<h1 align="center">DSH Memory Plus</h1>
 
-<p align="center">为 DeepSeek Harness 补齐中文与扩展汉字检索、跨会话记忆、工具去重与技能管理。</p>
+<p align="center">为 DeepSeek Harness 补齐中文检索、跨会话记忆与可复用技能。</p>
 
-![真实 CJK 检索演示：中文混排、扩展汉字、短查询和 ASCII](docs/demo-cjk-search.svg)
+<p align="center"><strong>简体中文</strong> · <a href="README.en.md">English</a></p>
 
-<p align="center">真实搜索引擎输出 · 扩展汉字 1／2／3 码点 · 短查询回退 · ASCII 与通配符对照</p>
+<p align="center"><img src="https://img.shields.io/badge/docs-%E4%B8%AD%E6%96%87-22d3ee?style=flat-square&amp;labelColor=172033" alt="docs: 中文"> <img src="https://img.shields.io/badge/maintainer-QIANLING--0831-22d3ee?style=flat-square&amp;labelColor=172033" alt="maintainer: QIANLING-0831"></p>
 
-扩展汉字以 Unicode 转义显示，避免字体缺字；实际查询使用原始码点。演示使用内存索引和合成会话，由 [演示脚本](scripts/demo-cjk-search.mjs) 的实际输出生成。[CJK 宿主验证](docs/CJK-HOST-VERIFICATION.md)覆盖真实持久化、冷重启、分页和 Web 界面；[完整记忆套件验证](docs/MEMORY-HOST-VERIFICATION.md)覆盖安装、真实会话召回、固定记忆、原生技能和数据库完整性。123 项自动测试、8 个包检查通过，macOS／Windows 桌面壳尚待社区验证。
+<p align="center"><a href="#4-安装">安装</a> · <a href="#keyboard-shortcuts">快捷键</a> · <a href="#demos">中文检索演示</a> · <a href="#1-插件一览">插件一览</a> · <a href="docs/MEMORY-HOST-VERIFICATION.md">验证记录</a></p>
 
-<p align="center"><img src="https://img.shields.io/badge/docs-%E4%B8%AD%E6%96%87-22d3ee?style=flat-square&amp;labelColor=172033" alt="docs: 中文"> <img src="https://img.shields.io/badge/maintainer-QIANLING--0831-22d3ee?style=flat-square&amp;labelColor=172033" alt="maintainer: QIANLING-0831"> </p>
+> **开发版更新** · 新增 5 项记忆与技能快捷键，附 Windows 网页版实际操作演示。[查看按键与屏幕效果 →](#keyboard-shortcuts)<br>
+> 当前源码可用，尚未包含在已发布的 v0.2.2 中。
 
-<p align="center"><a href="#0-为什么不是第-16-个记忆插件">0. 为什么不是&quot;第 16 个记忆插件&quot;</a> &nbsp; · &nbsp; <a href="#1-插件一览">1. 插件一览</a> &nbsp; · &nbsp; <a href="#2-背景dsh-记忆链路的现状与缺陷">2. 背景：DSH 记忆链路的现状与缺陷</a> &nbsp; · &nbsp; <a href="#3-架构三层记忆数据库--词条索引--增量驱动">3. 架构：三层记忆数据库 + 词条索引 + 增量驱动</a></p>
+130 项自动测试、8 个包检查通过。[完整记忆套件验证](docs/MEMORY-HOST-VERIFICATION.md) · [CJK 宿主验证](docs/CJK-HOST-VERIFICATION.md)
+
+<a name="demos"></a>
+
+<details>
+<summary><strong>查看中文检索动图</strong> · 中文混排、扩展汉字、短查询与 ASCII</summary>
+
+<p align="center"><img src="docs/demo-cjk-search.svg" width="820" alt="真实 CJK 检索演示：中文混排、扩展汉字、短查询和 ASCII"></p>
+
+真实搜索引擎输出，覆盖扩展汉字 1／2／3 码点、短查询回退、ASCII 与通配符对照。扩展汉字以 Unicode 转义显示，避免字体缺字；实际查询使用原始码点。演示使用内存索引和合成会话，由 [演示脚本](scripts/demo-cjk-search.mjs) 的实际输出生成。
+
+</details>
 
 ---
 
@@ -24,7 +36,12 @@
 
 DeepSeek Harness（DSH）的社区记忆插件集，共 8 个包：让中文子串、中英混排和扩展汉字可检索，并提供工具结果去重、向量与全文混合召回、跨会话核心记忆、可追溯压缩和技能管理。用户固定的记忆与技能带来源记录，模型工具与后台进化无法改写。Phase 0–3 已实现；CJK 后端已通过完整 `0.2.0-rc.2` Web 宿主的活会话与冷历史验证。
 
-> **宿主版本要求**：DSH **`>=0.1.5-rc.3 <0.3.0`**（cordis `^4.0.1`），已在 **0.1.5-rc.3 与 0.2.0-rc.2** 上验证。`ctx.sessionQuery` 由本仓的 CJK 插件作为上游 `SessionQueryEngine` 的**继承子类**提供，必须与宿主解析成同一份 `@deepseek-ai/dsh-session-query`，否则宿主会拿到缺少 `observeSession()` 的服务实例——详见 [issue #1](https://github.com/QIANLING-0831/dsh-memory-plus/issues/1) 与 `packages/dsh-session-query-sqlite-cjk/README.md` 的「宿主版本契约」。
+<details>
+<summary>宿主兼容：DSH <code>&gt;=0.1.5-rc.3 &lt;0.3.0</code></summary>
+
+DSH `>=0.1.5-rc.3 <0.3.0`（cordis `^4.0.1`），已在 `0.1.5-rc.3` 与 `0.2.0-rc.2` 上验证。`ctx.sessionQuery` 由本仓的 CJK 插件作为上游 `SessionQueryEngine` 的继承子类提供，必须与宿主解析成同一份 `@deepseek-ai/dsh-session-query`，否则宿主会拿到缺少 `observeSession()` 的服务实例。详见 [issue #1](https://github.com/QIANLING-0831/dsh-memory-plus/issues/1) 与 [宿主版本契约](packages/dsh-session-query-sqlite-cjk/README.md)。
+
+</details>
 
 ---
 
@@ -197,6 +214,52 @@ cd $env:DSH_HOME/profiles/<profile> && pnpm install
 
 `<compacted-summary>` 压缩块自带定位符（`## Exact Sources (locators)`），模型可用 `read <spill file>` 或 `memory_search` 恢复精确内容。
 
+<a name="keyboard-shortcuts"></a>
+
+### 5.1 记忆与技能快捷键
+
+**Windows 浏览器网页版** · DSH `0.2.0-rc.2` · **开发版，尚未发布**
+
+在主聊天页同时按下组合键。查看类操作直接显示结果；搜索和固定操作先填入命令，由你补全并确认。
+
+| 快捷键 | 操作与屏幕变化 |
+|:---|:---|
+| <kbd>Ctrl+Alt+Shift+F</kbd> | **搜索历史**<br>底部预填 `/memory-search`；输入关键词、按 Enter 后显示结果 |
+| <kbd>Ctrl+Alt+Shift+M</kbd> | **查看记忆**<br>对话区新增 `memory-list` 结果行，点击展开 |
+| <kbd>Ctrl+Alt+Shift+P</kbd> | **固定记忆**<br>底部预填 `/memory-pin`；补全内容后按 Enter 确认 |
+| <kbd>Ctrl+Alt+Shift+S</kbd> | **查看技能**<br>对话区新增 `skill-list` 结果行，点击展开 |
+| <kbd>Ctrl+Alt+Shift+K</kbd> | **固定技能**<br>底部预填 `/skill-pin`；输入技能名后按 Enter 确认 |
+
+已有草稿和附件会保留，弹窗或终端内不触发。以上命令不请求模型；`Ctrl+F` 继续提供浏览器页面内查找。解除固定使用 `/memory-unpin`、`/skill-unpin`。
+
+<details>
+<summary><strong>查看实际操作动图</strong> · Windows 网页版 · 搜索历史</summary>
+
+<p align="center"><img src="docs/shortcuts-effects.svg" width="860" alt="Windows 网页版历史搜索：完整按键、底部输入框、Enter 确认与鼠标展开结果"></p>
+
+其他演示：[查看记忆](docs/shortcuts-memory-list.svg) · [固定记忆](docs/shortcuts-memory-pin.svg) · [查看技能](docs/shortcuts-skill-list.svg) · [固定技能](docs/shortcuts-skill-pin.svg)
+
+</details>
+
+演示为真实 DSH 网页逐帧截图，采集于 Linux Chromium 的 Windows 按键模式；橙框和放大区为讲解标注，原生 Windows 实机按键尚未验证。[完整使用说明与验证范围 →](docs/SHORTCUTS.md)
+
+<details>
+<summary>安装开发版与其他平台说明</summary>
+
+从当前 checkout 安装到 `web` profile。Windows / PowerShell：
+
+```powershell
+.\scripts\install.ps1 -Profile web
+```
+
+完成后重启 DSH 并刷新页面，在宿主快捷键面板中搜索 `memory plus` 可查看或改键。快捷键注册服务的验证基线为 DSH `0.2.0-rc.2`；旧宿主没有该服务时继续提供原有记忆功能。
+
+macOS 的默认组合将 Ctrl 换成 ⌘、Alt 换成 ⌥；Linux 桌面声明与 Windows 相同的组合。Linux 浏览器没有这些默认组合，使用同名斜杠命令。Windows/macOS/Linux 桌面壳的原生按键投递仍待实机验证。
+
+`/memory-search <关键词>` 复用混合检索服务及 `memory-tool.defaultLimit/defaultMaxChars` 限额；`/skill-list` 复用原生技能目录与本插件的来源标记。
+
+</details>
+
 ---
 
 ## 6. 真机验证（`dsh --profile headless`，独立测试 profile）
@@ -244,7 +307,7 @@ cd $env:DSH_HOME/profiles/<profile> && pnpm install
 
 ```sh
 corepack pnpm install
-corepack pnpm test        # 123 项自动测试，包含多进程数据库与安装脚本回归
+corepack pnpm test        # 130 项自动测试，包含多进程数据库与安装脚本回归
 ```
 
 > 若受限沙箱拦截测试文件的子进程（`spawn EPERM`），可尝试 `corepack pnpm test:single`。多进程数据库与安装脚本测试仍需创建子进程；如果沙箱也拦截它们，应在允许测试子进程的环境运行完整套件。

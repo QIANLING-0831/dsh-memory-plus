@@ -19,6 +19,12 @@ test('the release tarball contains every plugin and resolves without workspace p
     const packed = join(output, 'package');
     const manifest = JSON.parse(await readFile(join(packed, 'package.json'), 'utf8'));
     const patch = await readFile(join(packed, 'cordis.patch.yml'), 'utf8');
+    assert.equal(manifest.dsh.client.platform, 'web');
+    assert.equal(manifest.exports['.'], './lib/index.js');
+    assert.equal(manifest.exports['./client'], './lib/client.js');
+    assert.ok(patch.includes('name: dsh-memory-bundle\n'), 'root row enables browser shortcut discovery');
+    assert.equal(await readFile(join(packed, 'lib/client.js'), 'utf8'),
+      await readFile(join(root, 'packages/dsh-memory-bundle/lib/client.js'), 'utf8'));
     const names = (await readdir(join(root, 'packages'))).filter(name => name !== bundle.name).sort();
     assert.equal(names.length, 7);
     for (const name of names) {

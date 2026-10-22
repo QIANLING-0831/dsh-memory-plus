@@ -1,14 +1,35 @@
-# dsh-memory
+<h1 align="center">DSH Memory Plus</h1>
 
-Eight community memory plugins for DeepSeek Harness (DSH): Chinese substring, mixed-text and supplementary Han search, tool-result dedup, hybrid vector/full-text recall, cross-session core memory, traceable compaction and skill management. Pinned memories and skills carry provenance and cannot be changed by model tools or background evolution. Phases 0–3 are implemented; the CJK backend is verified with live and cold history in the complete `0.2.0-rc.2` Web host.
+<p align="center">Chinese search, cross-session memory and reusable skills for DeepSeek Harness.</p>
 
-![Real CJK search demo: mixed text, supplementary Han, short queries and ASCII](docs/demo-cjk-search.svg)
+<p align="center"><a href="README.md">简体中文</a> · <strong>English</strong></p>
+
+<p align="center"><a href="#4-install">Install</a> · <a href="#keyboard-shortcuts">Shortcuts</a> · <a href="#demos">Search demo</a> · <a href="#1-packages">Packages</a> · <a href="docs/MEMORY-HOST-VERIFICATION.md">Verification</a></p>
+
+> **Development update** · Five memory and skill shortcuts, with Windows Web walkthroughs. [View keys and visible effects →](#keyboard-shortcuts)<br>
+> Available in the current source; not included in the published v0.2.2 asset.
+
+130 automated tests and all 8 package checks pass. [Full bundle verification](docs/MEMORY-HOST-VERIFICATION.md) · [CJK host verification](docs/CJK-HOST-VERIFICATION.md)
+
+<a name="demos"></a>
+
+<details>
+<summary><strong>Watch the search demo</strong> · Mixed text, supplementary Han, short queries and ASCII</summary>
+
+<p align="center"><img src="docs/demo-cjk-search.svg" width="820" alt="Real CJK search demo: mixed text, supplementary Han, short queries and ASCII"></p>
 
 Real engine output: supplementary Han queries of 1/2/3 code points, short-query fallback, ASCII and literal-wildcard controls. Supplementary Han is displayed as Unicode escapes for font compatibility; the engine queries the original code points. Generated from [the demo script](scripts/demo-cjk-search.mjs) using an in-memory index and a synthetic live session.
 
-[CJK host verification](docs/CJK-HOST-VERIFICATION.md) additionally covers real persistence, cold reboot, pagination and the Web UI. [Full memory bundle verification](docs/MEMORY-HOST-VERIFICATION.md) covers installation, real-session recall, pinned facts, native skills and database integrity. **123 automated tests and all 8 package checks pass.** macOS/Windows desktop shells await community validation.
+</details>
 
-> **Host requirement: DSH `>=0.1.5-rc.3 <0.3.0` (cordis `^4.0.1`), verified on 0.1.5-rc.3 and 0.2.0-rc.2.** `ctx.sessionQuery` is provided by this repo's CJK plugin as a **subclass** of upstream `SessionQueryEngine`, so it must resolve the *same* `@deepseek-ai/dsh-session-query` copy as the host — otherwise the host gets a service instance without `observeSession()`. See [issue #1](https://github.com/QIANLING-0831/dsh-memory-plus/issues/1) and the "host version contract" section of `packages/dsh-session-query-sqlite-cjk/README.md`.
+Eight community memory packages for DeepSeek Harness (DSH): CJK search, tool-result dedup, hybrid vector/full-text recall, cross-session core memory, traceable compaction and skill management. Pinned memories and skills carry provenance and cannot be changed by model tools or background evolution. Phases 0–3 are implemented; the CJK backend is verified with live and cold history in the complete `0.2.0-rc.2` Web host. Native desktop shells await community validation.
+
+<details>
+<summary>Host compatibility: DSH <code>&gt;=0.1.5-rc.3 &lt;0.3.0</code></summary>
+
+DSH `>=0.1.5-rc.3 <0.3.0` (cordis `^4.0.1`), verified on `0.1.5-rc.3` and `0.2.0-rc.2`. `ctx.sessionQuery` is provided by this repo's CJK plugin as a subclass of upstream `SessionQueryEngine`, so it must resolve the same `@deepseek-ai/dsh-session-query` copy as the host; otherwise the host gets a service instance without `observeSession()`. See [issue #1](https://github.com/QIANLING-0831/dsh-memory-plus/issues/1) and the [host version contract](packages/dsh-session-query-sqlite-cjk/README.md).
+
+</details>
 
 ---
 
@@ -125,6 +146,50 @@ The model gets five tools:
 - `skill_delete(name)` / `skill_list()` — delete / list skills, with provenance (`(managed:model)` / `(managed:evolve)` / `(human)` / `(pinned)`).
 
 **The user layer (slash commands the model cannot reach).** `/skill-pin <name>` and `/skill-unpin <name>` pin a skill file; `/memory-pin [topic] <text>`, `/memory-unpin <id|text>` and `/memory-list` manage standing memories. These run through `ctx.commands`: a slash line executes against the agent, is never submitted to the model, and no model-facing tool can dispatch one — so a pin is structural, not advisory. Files the user wrote by hand or pinned are refused to `skill_write` / `skill_delete` / the evolution loop, and each refusal lands in the `skill_events` audit log. Design and measurements: [`docs/PROVENANCE-AND-PIN.md`](docs/PROVENANCE-AND-PIN.md).
+
+<a name="keyboard-shortcuts"></a>
+
+### Memory and skill shortcuts
+
+**Windows browser** · DSH `0.2.0-rc.2` · **Development source, unreleased**
+
+Press all four keys together in the main conversation. List actions show results immediately; search and pin actions prepare a command for you to complete and confirm.
+
+| Shortcut | Action and visible effect |
+|:---|:---|
+| <kbd>Ctrl+Alt+Shift+F</kbd> | **Search history**<br>Prepare `/memory-search` in the composer; enter keywords and press Enter for results |
+| <kbd>Ctrl+Alt+Shift+M</kbd> | **List memories**<br>Add a `memory-list` result row to the conversation; click to expand |
+| <kbd>Ctrl+Alt+Shift+P</kbd> | **Pin a memory**<br>Prepare `/memory-pin`; complete the text and press Enter to confirm |
+| <kbd>Ctrl+Alt+Shift+S</kbd> | **List skills**<br>Add a `skill-list` result row to the conversation; click to expand |
+| <kbd>Ctrl+Alt+Shift+K</kbd> | **Pin a skill**<br>Prepare `/skill-pin`; enter a name and press Enter to confirm |
+
+Existing drafts and attachments are preserved. Modals and terminals retain input ownership. These commands do not call the model. `Ctrl+F` keeps browser page-find. Use `/memory-unpin` and `/skill-unpin` to remove a pin.
+
+<details>
+<summary><strong>Watch the actual interaction</strong> · Windows Web · Search history</summary>
+
+<p align="center"><img src="docs/shortcuts-effects.svg" width="860" alt="Windows Web search walkthrough: full keys, composer, Enter confirmation and click to expand results"></p>
+
+More walkthroughs: [List memories](docs/shortcuts-memory-list.svg) · [Pin memory](docs/shortcuts-memory-pin.svg) · [List skills](docs/shortcuts-skill-list.svg) · [Pin skill](docs/shortcuts-skill-pin.svg)
+
+</details>
+
+Actual DSH page screenshots, in Chinese, captured on Linux Chromium using Windows key-mode emulation. Orange outlines and magnified regions are tutorial annotations; native Windows key delivery has not been verified. [Full guide and verification scope →](docs/SHORTCUTS.md)
+
+<details>
+<summary>Install the development source and check other platforms</summary>
+
+Install the current checkout into the `web` profile. On Windows / PowerShell:
+
+```powershell
+.\scripts\install.ps1 -Profile web
+```
+
+Restart DSH and reload the page. Search for `memory plus` in the host shortcut settings to view or edit bindings. The shortcut-service baseline is DSH `0.2.0-rc.2`; hosts without that service retain existing memory features.
+
+macOS defaults replace Ctrl with ⌘ and Alt with ⌥. Linux Desktop declares the Windows combinations. Linux browsers have no defaults under the host's policy and use the slash commands. Native Windows/macOS/Linux desktop key delivery awaits actual-device testing.
+
+</details>
 
 ## 6. Verification
 

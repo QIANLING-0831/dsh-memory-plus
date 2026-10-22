@@ -57,6 +57,7 @@ metadata:
 | 命令 | 作用 |
 |---|---|
 | `/skill-pin <skill-name>` | 固定一个技能：此后模型工具与后台进化都不能改写或删除它 |
+| `/skill-list` | 直接查看当前工作区可用技能和来源标记，不请求模型 |
 | `/skill-unpin <skill-name>` | 解除固定 |
 
 命令走 `@deepseek-ai/dsh-commands`（`ctx.commands`）：斜杠命令**只对 agent 执行，永远不会变成模型消息**，也没有任何模型工具能派发它——这正是 hermes 把 `/memory-pin` 做成命令而非工具的原因。`commands` 是可选服务：headless profile 没有命令适配器时，插件照常启动，只是不注册命令（`ctx.inject(["commands"], …)`）。

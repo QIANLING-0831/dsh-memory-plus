@@ -21,6 +21,8 @@ plugins:
 
 ## 模型视角
 
+交互式宿主还提供用户命令 `/memory-search <关键词>`，使用相同检索服务与上面的默认限额，直接显示本会话历史结果，不请求模型。安装 bundle 的当前开发版后，可用 `Ctrl+Alt+Shift+F`（macOS：`⌘+⌥+⇧+F`）预填命令；详见根 README 的快捷键章节。
+
 ```
 memory_search(query: "EPERM src/a.ts", limit: 3, max_chars: 600)
 → "1. [seq 42, tool/result, earlier, lexical+vector]

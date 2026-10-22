@@ -13,6 +13,8 @@
   disabled: true
 
 - insert:
+    - id: memory-shortcuts
+      name: dsh-memory-bundle
     - id: session-query-sqlite-cjk
       name: dsh-session-query-sqlite-cjk
       config:

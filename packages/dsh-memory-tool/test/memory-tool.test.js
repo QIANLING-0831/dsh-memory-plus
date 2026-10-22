@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { createMemorySearchTool, formatHit, formatResult } from "../lib/index.js";
+import { createMemorySearchTool, formatHit, formatResult, registerMemorySearchCommand } from "../lib/index.js";
 
 function stubCtx(hits) {
 	return {
@@ -14,6 +14,40 @@ function stubCtx(hits) {
 	};
 }
 const calls = [];
+
+test("human recall validates input, stays in the current session and bounds results", async () => {
+	let command;
+	let request;
+	const signal = new AbortController().signal;
+	const agent = { session: { header: { id: "human-session" } } };
+	const ctx = {
+		commands: { register(value) { command = value; } },
+		memorySearch: { async search(args, exec) {
+			request = args;
+			assert.equal(exec.agent, agent);
+			assert.equal(exec.signal, signal);
+			return sampleHits;
+		} }
+	};
+	registerMemorySearchCommand({ inject(deps, callback) {
+		assert.deepEqual(deps, ["commands"]);
+		callback(ctx);
+	} }, { defaultLimit: 1, defaultMaxChars: 200 });
+	assert.equal(command.name, "memory-search");
+	assert.equal((await command.handler({ rawInput: " ", agent })).kind, "error");
+	assert.equal(request, undefined);
+	assert.equal((await command.handler({ rawInput: "中文" })).kind, "error");
+	const result = await command.handler({ rawInput: " 中文 ", agent, signal });
+	assert.deepEqual(request, { sessionId: "human-session", query: "中文", limit: 1, maxChars: 200 });
+	assert.equal(result.kind, "success");
+	assert.match(result.text, /EPERM/);
+	assert.doesNotMatch(result.text, /sqlite-vec/);
+	ctx.memorySearch.search = async () => [];
+	assert.match((await command.handler({ rawInput: "missing", agent })).text, /没有匹配/);
+	ctx.memorySearch.search = async () => { throw new Error("offline"); };
+	assert.equal((await command.handler({ rawInput: "中文", agent })).kind, "error");
+	assert.doesNotThrow(() => registerMemorySearchCommand({}, {}), "headless host is supported");
+});
 
 const sampleHits = [
 	{

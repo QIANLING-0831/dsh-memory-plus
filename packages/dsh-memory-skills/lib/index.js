@@ -901,6 +901,21 @@ export function registerSkillCommands(ctx) {
 	if (typeof ctx.inject !== "function") return;
 	ctx.inject(["commands"], (commandCtx) => {
 		const engineOf = () => commandCtx.get("memorySkills");
+		commandCtx.commands.register({
+			name: "skill-list",
+			description: "查看当前工作区可用的技能及用户固定状态（不请求模型）",
+			handler: async ({ agent }) => {
+				const engine = engineOf();
+				if (!engine) return { kind: "error", text: "memory-skills 服务未加载。" };
+				try {
+					const skills = await engine.listAvailable(agent?.session?.header?.cwd);
+					return { kind: "success", text: skills.length
+						? skills.map(formatSkillLine).join("\n") : "当前工作区没有可用技能。" };
+				} catch (error) {
+					return { kind: "error", text: `读取技能失败：${String(error)}` };
+				}
+			}
+		});
 		const setPinned = (pinned) => ({ rawInput, agent }) => {
 			const name = String(rawInput ?? "").trim();
 			if (name.length === 0) return {

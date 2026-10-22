@@ -502,7 +502,7 @@ test("human commands pin and unpin a skill (registerSkillCommands)", async () =>
 		assert.deepEqual(deps, ["commands"]);
 		callback(commandCtx);
 	} });
-	assert.deepEqual([...registered.keys()].sort(), ["skill-pin", "skill-unpin"]);
+	assert.deepEqual([...registered.keys()].sort(), ["skill-list", "skill-pin", "skill-unpin"]);
 	engine.writeSkill({ name: "freeze-me", description: "d", content: "c" }, { actor: "model" });
 	const store = new SkillStore(dir, 50);
 	const pinned = await registered.get("skill-pin").handler({
@@ -511,6 +511,10 @@ test("human commands pin and unpin a skill (registerSkillCommands)", async () =>
 	});
 	assert.equal(pinned.kind, "success");
 	assert.equal(store.read("freeze-me").pinned, true);
+	const listed = await registered.get("skill-list").handler({ agent: { session: { header: { cwd: dir } } } });
+	assert.equal(listed.kind, "success");
+	assert.match(listed.text, /freeze-me/);
+	assert.match(listed.text, /pinned/);
 	assert.throws(() => engine.writeSkill({ name: "freeze-me", description: "d2", content: "c2" }), /pinned by the user/);
 	const again = await registered.get("skill-pin").handler({ rawInput: "freeze-me", agent: {} });
 	assert.equal(again.kind, "success");

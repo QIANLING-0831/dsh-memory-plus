@@ -92,6 +92,34 @@ function clampInt(value, fallback, min, max) {
 	if (!Number.isInteger(parsed) || parsed < min || parsed > max) return fallback;
 	return parsed;
 }
+/** Human-only recall: the command result never goes through the model. */
+export function registerMemorySearchCommand(ctx, config) {
+	if (typeof ctx.inject !== "function") return;
+	ctx.inject(["commands"], (commandCtx) => {
+		commandCtx.commands.register({
+			name: "memory-search",
+			description: "搜索当前会话的历史记忆（中文可用，直接返回结果，不请求模型）",
+			input: { hint: "<关键词>" },
+			handler: async ({ rawInput, agent, signal }) => {
+				const query = String(rawInput ?? "").trim();
+				if (!query) return { kind: "error", text: "用法：/memory-search <关键词>" };
+				const sessionId = agent?.session?.header?.id;
+				if (!sessionId) return { kind: "error", text: "没有可搜索的当前会话。" };
+				try {
+					const hits = await commandCtx.memorySearch.search({
+						sessionId, query, limit: config.defaultLimit, maxChars: config.defaultMaxChars
+					}, { agent, signal });
+					return { kind: "success", text: hits.length
+						? `历史记忆（最多 ${config.defaultLimit} 条）：\n${hits.slice(0, config.defaultLimit).map(formatHit).join("\n")}`
+						: "当前会话没有匹配的历史记忆。" };
+				} catch (error) {
+					commandCtx.logger?.warn(`memory-search failed: ${String(error)}`);
+					return { kind: "error", text: "历史记忆搜索暂时不可用，请稍后重试。" };
+				}
+			}
+		});
+	});
+}
 /** Register the `memory_search` tool. */
 function apply(ctx, config) {
 	const resolved = {
@@ -99,6 +127,7 @@ function apply(ctx, config) {
 		defaultMaxChars: config.defaultMaxChars ?? 600
 	};
 	ctx.tools.register(createMemorySearchTool(ctx, resolved));
+	registerMemorySearchCommand(ctx, resolved);
 }
 //#endregion
 export { Config, apply, inject, name };

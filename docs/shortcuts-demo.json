@@ -1,0 +1,374 @@
+{
+  "host": "0.2.0-rc.2",
+  "target": "Windows 浏览器网页版",
+  "capture": "Linux Chromium；navigator.platform=Win32；非 Windows 实机录屏",
+  "theme": "DSH 原生深色主题",
+  "viewport": {
+    "width": 1280,
+    "height": 760
+  },
+  "syntheticData": true,
+  "scenes": [
+    {
+      "id": "search",
+      "title": "搜索会话历史",
+      "letter": "F",
+      "command": "memory-search",
+      "args": "索引优化",
+      "sessionTitle": "1. 搜索会话历史 · 演示 5967",
+      "binding": "Ctrl + Alt + Shift + F",
+      "steps": [
+        {
+          "name": "操作前",
+          "action": "暂不按键",
+          "effect": "底部输入框为空。对话区还没有本次命令的结果。",
+          "file": "shortcuts-captures/search-0.png",
+          "focus": {
+            "x": 420.5,
+            "y": 662,
+            "width": 708,
+            "height": 36
+          },
+          "duration": 1800
+        },
+        {
+          "name": "快捷键的直接效果",
+          "action": "同时按 Ctrl + Alt + Shift + F",
+          "effect": "底部输入框自动填入 /memory-search，并获得焦点。此时还没有执行命令。",
+          "file": "shortcuts-captures/search-1.png",
+          "focus": {
+            "x": 420.5,
+            "y": 662,
+            "width": 708,
+            "height": 36
+          },
+          "duration": 3000
+        },
+        {
+          "name": "手动补全参数",
+          "action": "手动输入：索引优化",
+          "effect": "这一步的文字由用户输入，不是快捷键自动生成。",
+          "file": "shortcuts-captures/search-2.png",
+          "focus": {
+            "x": 420.5,
+            "y": 662,
+            "width": 708,
+            "height": 36
+          },
+          "duration": 2600
+        },
+        {
+          "name": "手动确认后的结果",
+          "action": "手动按 Enter",
+          "effect": "对话区新增 memory-search 结果行。底部输入框已清空。",
+          "file": "shortcuts-captures/search-3.png",
+          "focus": {
+            "x": 436.5,
+            "y": 184,
+            "width": 680,
+            "height": 24
+          },
+          "duration": 3000
+        },
+        {
+          "name": "鼠标展开全文",
+          "action": "鼠标点击刚出现的结果行",
+          "effect": "展开后显示完整命令结果。展开是这一步鼠标点击的效果。",
+          "file": "shortcuts-captures/search-4.png",
+          "focus": {
+            "x": 436.5,
+            "y": 184,
+            "width": 680,
+            "height": 106
+          },
+          "duration": 4500
+        }
+      ],
+      "result": "历史记忆（最多 3 条）：\n1. [seq 4, user/message, current, lexical+vector]\n   项目记录：索引优化可以减少Token消耗。"
+    },
+    {
+      "id": "list",
+      "title": "查看常驻记忆",
+      "letter": "M",
+      "command": "memory-list",
+      "sessionTitle": "2. 查看常驻记忆 · 演示 6064",
+      "binding": "Ctrl + Alt + Shift + M",
+      "steps": [
+        {
+          "name": "操作前",
+          "action": "暂不按键",
+          "effect": "底部输入框为空。对话区还没有本次命令的结果。",
+          "file": "shortcuts-captures/list-0.png",
+          "focus": {
+            "x": 420.5,
+            "y": 662,
+            "width": 708,
+            "height": 36
+          },
+          "duration": 1800
+        },
+        {
+          "name": "快捷键的直接效果",
+          "action": "同时按 Ctrl + Alt + Shift + M",
+          "effect": "对话区新增 memory-list 结果行，默认折叠；没有打开独立窗口。",
+          "file": "shortcuts-captures/list-1.png",
+          "focus": {
+            "x": 436.5,
+            "y": 184,
+            "width": 680,
+            "height": 24
+          },
+          "duration": 3000
+        },
+        {
+          "name": "鼠标展开全文",
+          "action": "鼠标点击刚出现的结果行",
+          "effect": "展开后显示完整命令结果。展开是这一步鼠标点击的效果。",
+          "file": "shortcuts-captures/list-2.png",
+          "focus": {
+            "x": 436.5,
+            "y": 184,
+            "width": 680,
+            "height": 90
+          },
+          "duration": 4500
+        }
+      ],
+      "result": "- [pinned] [preference] 回答使用中文。  (id: 706fc5f1)\n- [environment] 项目使用 pnpm 管理依赖。  (id: 29a1680f)"
+    },
+    {
+      "id": "pin",
+      "title": "固定一条记忆",
+      "letter": "P",
+      "command": "memory-pin",
+      "args": "convention 发布前必须运行测试。",
+      "verify": "memory-list",
+      "verifyKey": "M",
+      "sessionTitle": "3. 固定一条记忆 · 演示 6093",
+      "binding": "Ctrl + Alt + Shift + P",
+      "steps": [
+        {
+          "name": "操作前",
+          "action": "暂不按键",
+          "effect": "底部输入框为空。对话区还没有本次命令的结果。",
+          "file": "shortcuts-captures/pin-0.png",
+          "focus": {
+            "x": 420.5,
+            "y": 662,
+            "width": 708,
+            "height": 36
+          },
+          "duration": 1800
+        },
+        {
+          "name": "快捷键的直接效果",
+          "action": "同时按 Ctrl + Alt + Shift + P",
+          "effect": "底部输入框自动填入 /memory-pin，并获得焦点。此时还没有执行命令。",
+          "file": "shortcuts-captures/pin-1.png",
+          "focus": {
+            "x": 420.5,
+            "y": 662,
+            "width": 708,
+            "height": 36
+          },
+          "duration": 3000
+        },
+        {
+          "name": "手动补全参数",
+          "action": "手动输入：convention 发布前必须运行测试。",
+          "effect": "这一步的文字由用户输入，不是快捷键自动生成。",
+          "file": "shortcuts-captures/pin-2.png",
+          "focus": {
+            "x": 420.5,
+            "y": 662,
+            "width": 708,
+            "height": 36
+          },
+          "duration": 2600
+        },
+        {
+          "name": "手动确认后的结果",
+          "action": "手动按 Enter",
+          "effect": "对话区新增 memory-pin 结果行。底部输入框已清空。",
+          "file": "shortcuts-captures/pin-3.png",
+          "focus": {
+            "x": 436.5,
+            "y": 184,
+            "width": 680,
+            "height": 24
+          },
+          "duration": 3000
+        },
+        {
+          "name": "再次查看，核对固定状态",
+          "action": "再按 Ctrl + Alt + Shift + M",
+          "effect": "对话区新增 memory-list 结果行。接下来点击展开，核对 pinned 标记。",
+          "file": "shortcuts-captures/pin-4.png",
+          "focus": {
+            "x": 436.5,
+            "y": 214,
+            "width": 680,
+            "height": 24
+          },
+          "duration": 2600
+        },
+        {
+          "name": "鼠标展开全文",
+          "action": "鼠标点击刚出现的结果行",
+          "effect": "展开列表后，可以看到新增的 pinned 固定标记。",
+          "file": "shortcuts-captures/pin-5.png",
+          "focus": {
+            "x": 436.5,
+            "y": 214,
+            "width": 680,
+            "height": 106
+          },
+          "duration": 4500
+        }
+      ],
+      "result": "已固定 [convention] 发布前必须运行测试。 (id: 42236652)"
+    },
+    {
+      "id": "skills",
+      "title": "查看可用技能",
+      "letter": "S",
+      "command": "skill-list",
+      "sessionTitle": "4. 查看可用技能 · 演示 6144",
+      "binding": "Ctrl + Alt + Shift + S",
+      "steps": [
+        {
+          "name": "操作前",
+          "action": "暂不按键",
+          "effect": "底部输入框为空。对话区还没有本次命令的结果。",
+          "file": "shortcuts-captures/skills-0.png",
+          "focus": {
+            "x": 420.5,
+            "y": 662,
+            "width": 708,
+            "height": 36
+          },
+          "duration": 1800
+        },
+        {
+          "name": "快捷键的直接效果",
+          "action": "同时按 Ctrl + Alt + Shift + S",
+          "effect": "对话区新增 skill-list 结果行，默认折叠；没有打开独立窗口。",
+          "file": "shortcuts-captures/skills-1.png",
+          "focus": {
+            "x": 436.5,
+            "y": 184,
+            "width": 680,
+            "height": 24
+          },
+          "duration": 3000
+        },
+        {
+          "name": "鼠标展开全文",
+          "action": "鼠标点击刚出现的结果行",
+          "effect": "展开后显示完整命令结果。展开是这一步鼠标点击的效果。",
+          "file": "shortcuts-captures/skills-2.png",
+          "focus": {
+            "x": 436.5,
+            "y": 184,
+            "width": 680,
+            "height": 90
+          },
+          "duration": 4500
+        }
+      ],
+      "result": "- project-style (pinned, managed:model): 项目风格约定\n- release-check (managed:model): 发布前检查"
+    },
+    {
+      "id": "skillPin",
+      "title": "固定一个技能",
+      "letter": "K",
+      "command": "skill-pin",
+      "args": "release-check",
+      "verify": "skill-list",
+      "verifyKey": "S",
+      "sessionTitle": "5. 固定一个技能 · 演示 6218",
+      "binding": "Ctrl + Alt + Shift + K",
+      "steps": [
+        {
+          "name": "操作前",
+          "action": "暂不按键",
+          "effect": "底部输入框为空。对话区还没有本次命令的结果。",
+          "file": "shortcuts-captures/skillPin-0.png",
+          "focus": {
+            "x": 420.5,
+            "y": 662,
+            "width": 708,
+            "height": 36
+          },
+          "duration": 1800
+        },
+        {
+          "name": "快捷键的直接效果",
+          "action": "同时按 Ctrl + Alt + Shift + K",
+          "effect": "底部输入框自动填入 /skill-pin，并获得焦点。此时还没有执行命令。",
+          "file": "shortcuts-captures/skillPin-1.png",
+          "focus": {
+            "x": 420.5,
+            "y": 662,
+            "width": 708,
+            "height": 36
+          },
+          "duration": 3000
+        },
+        {
+          "name": "手动补全参数",
+          "action": "手动输入：release-check",
+          "effect": "这一步的文字由用户输入，不是快捷键自动生成。",
+          "file": "shortcuts-captures/skillPin-2.png",
+          "focus": {
+            "x": 420.5,
+            "y": 662,
+            "width": 708,
+            "height": 36
+          },
+          "duration": 2600
+        },
+        {
+          "name": "手动确认后的结果",
+          "action": "手动按 Enter",
+          "effect": "对话区新增 skill-pin 结果行。底部输入框已清空。",
+          "file": "shortcuts-captures/skillPin-3.png",
+          "focus": {
+            "x": 436.5,
+            "y": 184,
+            "width": 680,
+            "height": 24
+          },
+          "duration": 3000
+        },
+        {
+          "name": "再次查看，核对固定状态",
+          "action": "再按 Ctrl + Alt + Shift + S",
+          "effect": "对话区新增 skill-list 结果行。接下来点击展开，核对 pinned 标记。",
+          "file": "shortcuts-captures/skillPin-4.png",
+          "focus": {
+            "x": 436.5,
+            "y": 214,
+            "width": 680,
+            "height": 24
+          },
+          "duration": 2600
+        },
+        {
+          "name": "鼠标展开全文",
+          "action": "鼠标点击刚出现的结果行",
+          "effect": "展开列表后，可以看到新增的 pinned 固定标记。",
+          "file": "shortcuts-captures/skillPin-5.png",
+          "focus": {
+            "x": 436.5,
+            "y": 214,
+            "width": 680,
+            "height": 90
+          },
+          "duration": 4500
+        }
+      ],
+      "result": "已固定技能 \"release-check\"：模型不能再改写或删除它（/skill-unpin release-check 可解除）。"
+    }
+  ]
+}

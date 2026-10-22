@@ -16,8 +16,8 @@ try {
   let patch = await readFile(join(bundleDir, 'cordis.patch.yml'), 'utf8');
   manifest.dependencies = {};
   manifest.peerDependencies = {};
-  manifest.exports = { './package.json': './package.json' };
-  manifest.files = ['plugins/', 'cordis.patch.yml', 'README.md', 'LICENSE'];
+  manifest.exports = { ...manifest.exports, './package.json': './package.json' };
+  manifest.files = ['lib/', 'plugins/', 'cordis.patch.yml', 'README.md', 'LICENSE'];
   delete manifest.devDependencies;
   const names = (await readdir(join(root, 'packages'))).filter(name => name !== manifest.name).sort();
   for (const name of names) {
@@ -37,6 +37,7 @@ try {
     patch = patch.replace(`name: ${name}\n`, `name: ${manifest.name}/${name}\n`);
   }
   for (const dependency of Object.keys(manifest.dependencies)) delete manifest.peerDependencies[dependency];
+  await cp(join(bundleDir, 'lib'), join(stage, 'lib'), { recursive: true });
   await writeFile(join(stage, 'package.json'), `${JSON.stringify(manifest, null, 2)}\n`);
   await writeFile(join(stage, 'cordis.patch.yml'), patch);
   await cp(join(root, 'README.en.md'), join(stage, 'README.md'));

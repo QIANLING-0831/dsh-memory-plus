@@ -1,6 +1,6 @@
 <h1 align="center">DSH Memory Pro</h1>
 
-<p align="center">为 DeepSeek Harness 补齐中文检索、跨会话记忆与可复用技能。</p>
+<p align="center">让新会话找回旧讨论，带着原文和最终决定继续聊。</p>
 
 <p align="center"><strong>简体中文</strong> · <a href="README.en.md">English</a></p>
 
@@ -9,7 +9,7 @@
 <p align="center"><a href="#4-安装">安装</a> · <a href="#keyboard-shortcuts">快捷键</a> · <a href="#demos">中文检索演示</a> · <a href="#1-插件一览">插件一览</a> · <a href="docs/MEMORY-HOST-VERIFICATION.md">验证记录</a></p>
 
 > **v0.3.0 · DSH Memory Pro** · 新增同工作区跨会话搜索、带来源的原文回读，并包含 5 项记忆与技能快捷键。[查看按键与屏幕效果 →](#keyboard-shortcuts)<br>
-> 原名 DSH Memory Plus；现有包名、数据库和快捷键绑定保持兼容。
+> 原名 DSH Memory Plus，仓库现为 `dsh-memory-pro`；旧链接继续跳转，包名、数据库和快捷键绑定保持兼容。
 
 141 项自动测试、8 个包检查通过。[完整记忆套件验证](docs/MEMORY-HOST-VERIFICATION.md) · [CJK 宿主验证](docs/CJK-HOST-VERIFICATION.md)
 
@@ -26,20 +26,33 @@
 
 ---
 
+## 新开会话，接着上次聊
+
+在同一工作区的新会话里说：
+
+> 继续上次的存储方案。先确认最后选了什么、为什么，附上原文来源，再列下一步。
+
+模型可用 `memory_search_workspace` 找到旧讨论，再用 `memory_read` 回读前后消息。如果先提了 Redis、后来纠正为 SQLite，就能核对那条纠正并引用它，而不只依赖一句旧摘要。是否主动调用工具仍取决于模型；常用入口的区别是：
+
+| 想做什么 | 使用的能力 |
+| --- | --- |
+| 找到其他会话里讨论过的方案 | `memory_search_workspace`：默认只搜当前工作区 |
+| 核对原话、原因及后续纠正 | `memory_read`：按来源引用回读有界原文窗口 |
+| 记住偏好、规则和长期事实 | `memory_remember`；重要规则可用 `/memory-pin` 固定 |
+| 找回当前会话较早的细节 | `memory_search`；用户命令 `/memory-search` 也仍只搜当前会话 |
+
+**已验证的范围**：v0.3.0 安装包通过 DSH `0.2.0-rc.2` / Linux 完整 Web profile 的安装、首次启动和冷重启；在线 `gpt-6.1-sol` 经测试桥调用真实工具，三类续聊各三次，9/9 通过。后者不是完整 DSH AgentLoop 或原生桌面端的在线验收。[发布与包验证](https://github.com/QIANLING-0831/dsh-memory-pro/releases/tag/v0.3.0) · [在线验收记录](docs/ONLINE-RECALL-EVAL.md)
+
 ## 项目概览
 
-| 方向 | 内容 |
-| --- | --- |
-| **中文召回** | FTS5 trigram 与短查询回退 |
-| **记忆分层** | 会话归档、跨会话事实与混合检索 |
-| **用户控制** | 带来源记录的固定记忆与技能保护 |
+DSH Memory Pro 是 DeepSeek Harness 的社区记忆插件集：中文子串检索负责找内容，工作区跨会话搜索与原文回读负责找回讨论，长期事实和技能负责复用已经确认的经验。共 8 个包，可用一个独立 bundle 安装。用户固定的事实和技能受插件写入接口保护；检索结果带来源、正文长度有界，默认不跨工作区。
 
-DeepSeek Harness（DSH）的社区记忆插件集，共 8 个包：让中文子串、中英混排和扩展汉字可检索，并提供工具结果去重、向量与全文混合召回、跨会话核心记忆、可追溯压缩和技能管理。用户固定的记忆与技能带来源记录，模型工具与后台进化无法改写。Phase 0–3 已实现；CJK 后端已通过完整 `0.2.0-rc.2` Web 宿主的活会话与冷历史验证。
+当前不提供跨设备云同步、Obsidian 文件夹导入、会话间任务投递或原文点击高亮；也不能给普通 DeepSeek 网页聊天直接增加记忆。适用环境及更多边界见下方兼容说明。
 
 <details>
 <summary>宿主兼容：DSH <code>&gt;=0.1.5-rc.3 &lt;0.3.0</code></summary>
 
-DSH `>=0.1.5-rc.3 <0.3.0`（cordis `^4.0.1`），已在 `0.1.5-rc.3` 与 `0.2.0-rc.2` 上验证。`ctx.sessionQuery` 由本仓的 CJK 插件作为上游 `SessionQueryEngine` 的继承子类提供，必须与宿主解析成同一份 `@deepseek-ai/dsh-session-query`，否则宿主会拿到缺少 `observeSession()` 的服务实例。详见 [issue #1](https://github.com/QIANLING-0831/dsh-memory-plus/issues/1) 与 [宿主版本契约](packages/dsh-session-query-sqlite-cjk/README.md)。
+DSH `>=0.1.5-rc.3 <0.3.0`（cordis `^4.0.1`），已在 `0.1.5-rc.3` 与 `0.2.0-rc.2` 上验证。`ctx.sessionQuery` 由本仓的 CJK 插件作为上游 `SessionQueryEngine` 的继承子类提供，必须与宿主解析成同一份 `@deepseek-ai/dsh-session-query`，否则宿主会拿到缺少 `observeSession()` 的服务实例。详见 [issue #1](https://github.com/QIANLING-0831/dsh-memory-pro/issues/1) 与 [宿主版本契约](packages/dsh-session-query-sqlite-cjk/README.md)。
 
 </details>
 
@@ -51,13 +64,14 @@ DSH `>=0.1.5-rc.3 <0.3.0`（cordis `^4.0.1`），已在 `0.1.5-rc.3` 与 `0.2.0-
 
 主要能力：
 
-1. **中文子串检索**：trigram 双表 + 1–2 字 LIKE 回退，支持中英混排与扩展汉字；具体查询对照见下文；
-2. **技能自我进化**：`skill_write/delete/list` + 后台反思蒸馏（Hermes 式学习循环，请求路径零开销）；
-3. **用户专属层（模型写不到）**：技能与常驻记忆都带**来源 provenance**；用户手写/`/skill-pin` `/memory-pin` 固定的内容，模型工具与后台进化一律拒绝改写，拒绝还进审计日志；
-4. **按场景区分的记忆**：事实 / 约定 / 环境 / 决策之外，`lesson` `correction` 是正式分类（"哪里错了"不被埋进 general）；
-5. **Token 去重**：工具结果哈希去重，纯省输入 Token；
-6. **KV-safe 稳定注入**：基于源码级验证（`buildRequest` deepFreeze / KV 前缀缓存 / 持久化路径）的注入纪律；
-7. **compaction 来源定位**：为压缩摘要附上原始事件和文件定位符，便于追溯细节。
+1. **跨会话找回讨论**：同工作区搜索、按来源回读原文，核对后续纠正后再继续；[使用示例](docs/WORKSPACE-RECALL.md)；
+2. **中文子串检索**：trigram 双表 + 1–2 字 LIKE 回退，支持中英混排与扩展汉字；具体查询对照见下文；
+3. **技能自我进化**：`skill_write/delete/list` + 后台反思蒸馏（Hermes 式学习循环，请求路径零开销）；
+4. **用户专属层（模型写不到）**：技能与常驻记忆都带**来源 provenance**；用户手写/`/skill-pin` `/memory-pin` 固定的内容，模型工具与后台进化一律拒绝改写，拒绝还进审计日志；
+5. **按场景区分的记忆**：事实 / 约定 / 环境 / 决策之外，`lesson` `correction` 是正式分类（"哪里错了"不被埋进 general）；
+6. **Token 去重**：工具结果哈希去重，纯省输入 Token；
+7. **KV-safe 稳定注入**：基于源码级验证（`buildRequest` deepFreeze / KV 前缀缓存 / 持久化路径）的注入纪律；
+8. **compaction 来源定位**：为压缩摘要附上原始事件和文件定位符，便于追溯细节。
 
 历史生态调研与 license 核对：[`docs/DSH-MEMORY-ECOSYSTEM.md`](docs/DSH-MEMORY-ECOSYSTEM.md)。
 
@@ -150,12 +164,12 @@ Stage 3  合并候选 → 已在上下文的替换为指针 → 预算裁剪
 ### 方式一：安装版本化 Release 包（推荐）
 
 ```sh
-dsh plugin --profile headless add https://github.com/QIANLING-0831/dsh-memory-plus/releases/download/v0.3.0/dsh-memory-bundle-0.3.0.tgz
+dsh plugin --profile headless add https://github.com/QIANLING-0831/dsh-memory-pro/releases/download/v0.3.0/dsh-memory-bundle-0.3.0.tgz
 ```
 
 需要 Node.js 24、兼容版本的 `dsh`，以及 PATH 上可用的 pnpm。将 `headless` 改成 `web` 可安装到 Web profile。
 
-Release 包内含 bundle patch 和七个插件的实现代码，通过 bundle 的子路径导出加载；安装时只需添加这一个包，DSH 会自动安装其外部依赖。包内没有 `workspace:` / `file:` / `link:` 依赖，无需 clone 源码、逐包注册或另跑 `pnpm install`，也不依赖本地源码目录。固定版本 URL 对应 [v0.3.0 Release](https://github.com/QIANLING-0831/dsh-memory-plus/releases/tag/v0.3.0)，同时提供 `SHA256SUMS`。
+Release 包内含 bundle patch 和七个插件的实现代码，通过 bundle 的子路径导出加载；安装时只需添加这一个包，DSH 会自动安装其外部依赖。包内没有 `workspace:` / `file:` / `link:` 依赖，无需 clone 源码、逐包注册或另跑 `pnpm install`，也不依赖本地源码目录。固定版本 URL 对应 [v0.3.0 Release](https://github.com/QIANLING-0831/dsh-memory-pro/releases/tag/v0.3.0)，同时提供 `SHA256SUMS`。
 
 尚未发布到 npm；这里使用的是可直接安装的 `.tgz` 资产，而不是 GitHub 自动生成的 Source code 压缩包。
 
@@ -166,8 +180,8 @@ Release 包内含 bundle patch 和七个插件的实现代码，通过 bundle �
 ### 方式二：从已有 checkout 安装（含 Windows）
 
 ```sh
-git clone https://github.com/QIANLING-0831/dsh-memory-plus.git
-cd dsh-memory-plus
+git clone https://github.com/QIANLING-0831/dsh-memory-pro.git
+cd dsh-memory-pro
 # Windows：
 .\scripts\install.ps1 -Profile headless
 # Linux/macOS：
@@ -177,8 +191,8 @@ bash scripts/install.sh headless
 ### 方式三：手动安装（高级）
 
 ```sh
-git clone https://github.com/QIANLING-0831/dsh-memory-plus.git
-cd dsh-memory-plus
+git clone https://github.com/QIANLING-0831/dsh-memory-pro.git
+cd dsh-memory-pro
 dsh plugin --profile <profile> add ./packages/dsh-memory-bundle
 dsh plugin --profile <profile> add ./packages/dsh-session-query-sqlite-cjk ./packages/dsh-tool-result-dedup ./packages/dsh-memory-index ./packages/dsh-memory-tool ./packages/dsh-compaction-locator ./packages/dsh-memory-core ./packages/dsh-memory-skills
 cd $env:DSH_HOME/profiles/<profile> && pnpm install
@@ -191,7 +205,7 @@ cd $env:DSH_HOME/profiles/<profile> && pnpm install
 
 ### 方式四：下载 Release 源码包
 
-到 [Releases](https://github.com/QIANLING-0831/dsh-memory-plus/releases) 下载 `Source code (zip)` → 解压 → 按方式二从解压目录运行安装脚本。
+到 [Releases](https://github.com/QIANLING-0831/dsh-memory-pro/releases) 下载 `Source code (zip)` → 解压 → 按方式二从解压目录运行安装脚本。
 
 安装后各插件默认配置见 [`packages/dsh-memory-bundle/cordis.patch.yml`](packages/dsh-memory-bundle/cordis.patch.yml)。生产嵌入需在 `memory-index` 配置 `embedder.kind: transformers` 并安装 `@huggingface/transformers`（当前默认 `char-overlap` 评估嵌入；国内模型下载用 `remoteHost: https://hf-mirror.com`）。
 

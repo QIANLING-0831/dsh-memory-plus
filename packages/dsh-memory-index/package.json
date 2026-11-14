@@ -7,7 +7,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/QIANLING-0831/dsh-memory-plus.git",
+    "url": "git+https://github.com/QIANLING-0831/dsh-memory-pro.git",
     "directory": "packages/dsh-memory-index"
   },
   "keywords": [
@@ -51,5 +51,5 @@
     "dsh-session-query-sqlite-cjk": "workspace:*"
   },
   "author": "QIANLING-0831",
-  "homepage": "https://github.com/QIANLING-0831/dsh-memory-plus#readme"
+  "homepage": "https://github.com/QIANLING-0831/dsh-memory-pro#readme"
 }

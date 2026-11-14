@@ -1,13 +1,13 @@
 <h1 align="center">DSH Memory Pro</h1>
 
-<p align="center">Chinese search, cross-session memory and reusable skills for DeepSeek Harness.</p>
+<p align="center">Continue a previous discussion in a new chat, with original sources and the final decision.</p>
 
 <p align="center"><a href="README.md">简体中文</a> · <strong>English</strong></p>
 
 <p align="center"><a href="#4-install">Install</a> · <a href="#keyboard-shortcuts">Shortcuts</a> · <a href="#demos">Search demo</a> · <a href="#1-packages">Packages</a> · <a href="docs/MEMORY-HOST-VERIFICATION.md">Verification</a></p>
 
 > **v0.3.0 · DSH Memory Pro** · Same-workspace conversation search, cited original-text readback, and five memory/skill shortcuts. [View keys and visible effects →](#keyboard-shortcuts)<br>
-> Previously DSH Memory Plus. Existing package names, databases and shortcut bindings remain compatible.
+> Previously DSH Memory Plus; the repository is now `dsh-memory-pro`. Old links redirect, and package names, databases and shortcut bindings remain compatible.
 
 141 automated tests and all 8 package checks pass. [Full bundle verification](docs/MEMORY-HOST-VERIFICATION.md) · [CJK host verification](docs/CJK-HOST-VERIFICATION.md)
 
@@ -22,14 +22,31 @@ Real engine output: supplementary Han queries of 1/2/3 code points, short-query 
 
 </details>
 
-**Included in the v0.3.0 Release bundle:** same-workspace cross-conversation search and cited original-text readback. See [usage and verification scope](docs/WORKSPACE-RECALL.md).
+## Continue where you left off
 
-Eight community memory packages for DeepSeek Harness (DSH): CJK search, tool-result dedup, hybrid vector/full-text recall, cross-session core memory, traceable compaction and skill management. Pinned memories and skills carry provenance and cannot be changed by model tools or background evolution. Phases 0–3 are implemented; the CJK backend is verified with live and cold history in the complete `0.2.0-rc.2` Web host. Native desktop shells await community validation.
+In a new conversation in the same workspace, try:
+
+> Continue our previous storage discussion. Confirm the final decision and why, cite the original messages, then suggest the next steps.
+
+The model can use `memory_search_workspace` to find the discussion and `memory_read` to check the surrounding original messages, including later corrections. It can verify that an initial Redis proposal was replaced by SQLite and cite the correction. Tool use remains model-dependent.
+
+| Need | Capability |
+| --- | --- |
+| Find a discussion from another conversation | `memory_search_workspace`, scoped to the current workspace |
+| Verify wording, reasons and corrections | `memory_read`, bounded original-text windows with source references |
+| Keep preferences and durable facts | `memory_remember`; `/memory-pin` protects important user rules |
+| Recall earlier steps in the current conversation | `memory_search`; `/memory-search` also remains current-session only |
+
+**Verified scope:** the v0.3.0 bundle passed installation, live and cold-reboot checks in DSH `0.2.0-rc.2` / Linux's full Web profile. Separately, online `gpt-6.1-sol` passed 9/9 continuation trials through a test bridge to the real tools; this is not an online test of the full DSH AgentLoop or native desktop UI. [Release and package verification](https://github.com/QIANLING-0831/dsh-memory-pro/releases/tag/v0.3.0) · [Online evaluation](docs/ONLINE-RECALL-EVAL.md)
+
+DSH Memory Pro is a community plugin suite for DeepSeek Harness: Chinese substring search, same-workspace conversation retrieval, cited original-text readback, persistent facts and reusable skills. Eight packages ship as one installable bundle. User-pinned facts and skills are protected by the plugin's write interfaces.
+
+Cross-device cloud sync, Obsidian-folder import, session-to-session task delivery and clickable source highlighting are not provided. This does not add memory to the ordinary DeepSeek chat website. See the compatibility and scope notes below.
 
 <details>
 <summary>Host compatibility: DSH <code>&gt;=0.1.5-rc.3 &lt;0.3.0</code></summary>
 
-DSH `>=0.1.5-rc.3 <0.3.0` (cordis `^4.0.1`), verified on `0.1.5-rc.3` and `0.2.0-rc.2`. `ctx.sessionQuery` is provided by this repo's CJK plugin as a subclass of upstream `SessionQueryEngine`, so it must resolve the same `@deepseek-ai/dsh-session-query` copy as the host; otherwise the host gets a service instance without `observeSession()`. See [issue #1](https://github.com/QIANLING-0831/dsh-memory-plus/issues/1) and the [host version contract](packages/dsh-session-query-sqlite-cjk/README.md).
+DSH `>=0.1.5-rc.3 <0.3.0` (cordis `^4.0.1`), verified on `0.1.5-rc.3` and `0.2.0-rc.2`. `ctx.sessionQuery` is provided by this repo's CJK plugin as a subclass of upstream `SessionQueryEngine`, so it must resolve the same `@deepseek-ai/dsh-session-query` copy as the host; otherwise the host gets a service instance without `observeSession()`. See [issue #1](https://github.com/QIANLING-0831/dsh-memory-pro/issues/1) and the [host version contract](packages/dsh-session-query-sqlite-cjk/README.md).
 
 </details>
 
@@ -41,13 +58,14 @@ Use this bundle when Chinese history is hard to search, details are hard to reco
 
 Main capabilities:
 
-1. **Chinese substring search** — trigram dual tables + a 1–2 char LIKE fallback, including mixed text and supplementary Han; see the query comparison below.
-2. **Skill self-evolution** — `skill_write/delete/list` plus a background reflection loop that distills reusable skills from finished turns (Hermes-style learning loop, zero request-path overhead).
-3. **A user layer the model cannot write** — skills and standing memories carry **provenance**; hand-written files and anything pinned with `/skill-pin` or `/memory-pin` are refused to model tools and to the background loop, and every refusal is written to an audit log.
-4. **A topic for mistakes** — `lesson` and `correction` are first-class fact topics, so "what went wrong" is not buried in `general`.
-5. **Token dedup** — hash-dedup of repeated tool results, saving input tokens.
-6. **KV-safe stable injection** — injection discipline derived from source-level findings (`buildRequest` deepFreeze / KV prefix-cache invalidation / persistent-log pollution).
-7. **Compaction provenance** — source locators attached to summaries (spill path / file / seq range) help recover original details.
+1. **Recover previous discussions** — same-workspace conversation search and cited original-text readback, including later corrections; [usage](docs/WORKSPACE-RECALL.md).
+2. **Chinese substring search** — trigram dual tables + a 1–2 char LIKE fallback, including mixed text and supplementary Han; see the query comparison below.
+3. **Skill self-evolution** — `skill_write/delete/list` plus a background reflection loop that distills reusable skills from finished turns (Hermes-style learning loop, zero request-path overhead).
+4. **A user layer the model cannot write** — skills and standing memories carry **provenance**; hand-written files and anything pinned with `/skill-pin` or `/memory-pin` are refused to model tools and to the background loop, and every refusal is written to an audit log.
+5. **A topic for mistakes** — `lesson` and `correction` are first-class fact topics, so "what went wrong" is not buried in `general`.
+6. **Token dedup** — hash-dedup of repeated tool results, saving input tokens.
+7. **KV-safe stable injection** — injection discipline derived from source-level findings (`buildRequest` deepFreeze / KV prefix-cache invalidation / persistent-log pollution).
+8. **Compaction provenance** — source locators attached to summaries (spill path / file / seq range) help recover original details.
 
 Historical ecosystem survey and license checks: [`docs/DSH-MEMORY-ECOSYSTEM.md`](docs/DSH-MEMORY-ECOSYSTEM.md).
 
@@ -118,12 +136,12 @@ Stage 3  merge candidates → pointers for already-visible items → budget trim
 Install the versioned Release bundle with one command:
 
 ```sh
-dsh plugin --profile headless add https://github.com/QIANLING-0831/dsh-memory-plus/releases/download/v0.3.0/dsh-memory-bundle-0.3.0.tgz
+dsh plugin --profile headless add https://github.com/QIANLING-0831/dsh-memory-pro/releases/download/v0.3.0/dsh-memory-bundle-0.3.0.tgz
 ```
 
 Requires Node.js 24, a compatible DSH, and pnpm on PATH. Replace `headless` with `web` for a Web profile. The `.tgz` contains the patch and all seven plugin implementations, exposed as bundle subpaths. DSH installs external dependencies automatically: no source checkout, per-package registration, separate `pnpm install`, or retained source directory is required. The package has no `workspace:`, `file:` or `link:` dependencies.
 
-The fixed URL points to the installable asset in [v0.3.0](https://github.com/QIANLING-0831/dsh-memory-plus/releases/tag/v0.3.0), with a `SHA256SUMS` file. It is not the automatically generated Source code archive. These packages are not published to npm. `node scripts/pack-release.mjs` rebuilds the standalone tarball; the tag workflow tests and publishes Release assets without npm credentials.
+The fixed URL points to the installable asset in [v0.3.0](https://github.com/QIANLING-0831/dsh-memory-pro/releases/tag/v0.3.0), with a `SHA256SUMS` file. It is not the automatically generated Source code archive. These packages are not published to npm. `node scripts/pack-release.mjs` rebuilds the standalone tarball; the tag workflow tests and publishes Release assets without npm credentials.
 
 To upgrade, run the Release URL command for the same profile, then restart DSH and refresh the browser. Do not delete memory databases. Explicit paths and shortcut IDs are unchanged. The plugin's v0.3.0 version is independent of the host DSH compatibility range.
 

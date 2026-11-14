@@ -1,0 +1,351 @@
+{
+  "date": "2026-11-14",
+  "production_source_commit": "b46ad8e103301baaaced368b762c19f7b6ee17b4",
+  "provider": "Codex CLI / ChatGPT auth",
+  "model": "gpt-6.1-sol",
+  "client_version": "codex-cli 0.166.0",
+  "runtime": "DSH 0.2.0-rc.2 / Node 24.21.0 / Linux",
+  "transport": "test-only stdio MCP bridge to unchanged production tool definitions and real JSONL/zstd persistence",
+  "repeats_per_case": 3,
+  "passed": 9,
+  "total": 9,
+  "unique_fresh_model_sessions": 9,
+  "manual_review": "All nine final answers adopt the later correction, cite its actual source, and distinguish proposed next actions from completed execution.",
+  "limits": [
+    "Synthetic fixtures; not a broad reliability benchmark",
+    "Default char-overlap embedding; no production semantic-embedding quality claim",
+    "Not a full DSH AgentLoop, Web profile or native desktop UI online test",
+    "Does not establish Claude performance"
+  ],
+  "results": [
+    {
+      "trial": "storage-1",
+      "passed": true,
+      "checks": {
+        "completed": true,
+        "searched": true,
+        "readOriginal": true,
+        "correctedAnswer": true,
+        "citesCorrection": true,
+        "isolated": true
+      },
+      "prompt": "继续上次那个离线诊断包的存储方案，按最后定下的做法列三条下一步，带上讨论来源，简短点。",
+      "answer": "按最终定案：**用 SQLite，不用 Redis，断网独立运行**。下一步建议：\n\n1. 明确 SQLite 表结构和本地数据库文件路径。\n2. 实现本地读写，移除 Redis 及外部服务依赖。\n3. 在断网机器验证诊断包完整运行、数据持久化。\n\n讨论来源：11 月 13 日最终纠正记录 [dsh-memory:discussion-9e13ccec-c7b1-4a28-94c9-1cdfa4f71ee5:3]。",
+      "calls": [
+        {
+          "name": "memory_search_workspace",
+          "arguments": {
+            "query": "离线诊断包 存储方案 最后 决定"
+          },
+          "result": "Workspace search complete.\n[dsh-memory:discussion-9e13ccec-c7b1-4a28-94c9-1cdfa4f71ee5:0] \"discussion-9e13ccec-c7b1-4a28-94c9-1cdfa4f71ee5\" | 2026-11-13T20:00:00.000Z | user/message\n离线诊断包存储方案：建议使用 Redis，集中式服务便于管理。\n\n[dsh-memory:discussion-9e13ccec-c7b1-4a28-94c9-1cdfa4f71ee5:3] \"discussion-9e13ccec-c7b1-4a28-94c9-1cdfa4f71ee5\" | 2026-11-13T20:00:03.000Z | user/message\n纠正前面的方案：最终采用 SQLite，不用 Redis。诊断包要在断网机器独立运行，不能依赖外部服务。\n\n[dsh-memory:discussion-9e13ccec-c7b1-4a28-94c9-1cdfa4f71ee5:2] \"discussion-9e13ccec-c7b1-4a28-94c9-1cdfa4f71ee5\" | 2026-11-13T20:00:02.000Z | user/message\n还有一个无关的界面布局问题，稍后单独开会话。\nUse memory_read with source_id to verify context; quote sources, and check for newer corrections."
+        },
+        {
+          "name": "memory_read",
+          "arguments": {
+            "source_id": "dsh-memory:discussion-9e13ccec-c7b1-4a28-94c9-1cdfa4f71ee5:3"
+          },
+          "result": "Original text, raw event window 0–3:\n[dsh-memory:discussion-9e13ccec-c7b1-4a28-94c9-1cdfa4f71ee5:0] 2026-11-13T20:00:00.000Z | user/message\n离线诊断包存储方案：建议使用 Redis，集中式服务便于管理。\n\n[dsh-memory:discussion-9e13ccec-c7b1-4a28-94c9-1cdfa4f71ee5:1] 2026-11-13T20:00:01.000Z | user/message\n先记下草案，等环境确认。\n\n[dsh-memory:discussion-9e13ccec-c7b1-4a28-94c9-1cdfa4f71ee5:2] 2026-11-13T20:00:02.000Z | user/message\n还有一个无关的界面布局问题，稍后单独开会话。\n\n[dsh-memory:discussion-9e13ccec-c7b1-4a28-94c9-1cdfa4f71ee5:3] 2026-11-13T20:00:03.000Z | user/message\n纠正前面的方案：最终采用 SQLite，不用 Redis。诊断包要在断网机器独立运行，不能依赖外部服务。\nCite the relevant source_id. This bounded window may omit later changes; search again if needed."
+        }
+      ],
+      "correctionSource": "dsh-memory:discussion-9e13ccec-c7b1-4a28-94c9-1cdfa4f71ee5:3",
+      "events_sha256": "78f3773d279a6f9e7628840012e32ae2bc2c291a14201c248f6c3b1bac4c6b84"
+    },
+    {
+      "trial": "port-1",
+      "passed": true,
+      "checks": {
+        "completed": true,
+        "searched": true,
+        "readOriginal": true,
+        "correctedAnswer": true,
+        "citesCorrection": true,
+        "isolated": true
+      },
+      "prompt": "接着上次星桥本地索引服务的讨论，把最终监听端口和接入注意事项给我，附来源。",
+      "answer": "上次讨论的最终结论：\n\n- **监听地址：`127.0.0.1:8647`**，只允许本机访问。\n- **`7311` 已废弃**：被其他进程占用，最终改为 `8647`。\n- **接入注意**：客户端连接地址与健康检查地址都要同步更新；不要监听 `0.0.0.0`。历史讨论未明确协议和健康检查路径，不能据此假定为 HTTP 或 `/health`。\n\n来源：2026-11-13 最后一条端口纠正原文：“最后确定改用 8647。客户端和健康检查地址都要同步更新，只监听 127.0.0.1。”\n`dsh-memory:discussion-3605e152-f9ad-4d38-a602-f7658ef17aba:3`",
+      "calls": [
+        {
+          "name": "memory_search_workspace",
+          "arguments": {
+            "query": "星桥 本地索引 服务 监听 端口 接入",
+            "limit": 6,
+            "max_chars": 2500
+          },
+          "result": "Workspace search complete.\n[dsh-memory:discussion-3605e152-f9ad-4d38-a602-f7658ef17aba:0] \"discussion-3605e152-f9ad-4d38-a602-f7658ef17aba\" | 2026-11-13T20:00:00.000Z | user/message\n星桥本地索引服务：先把监听端口设为 7311，客户端稍后按这个接。\n\n[dsh-memory:discussion-3605e152-f9ad-4d38-a602-f7658ef17aba:3] \"discussion-3605e152-f9ad-4d38-a602-f7658ef17aba\" | 2026-11-13T20:00:03.000Z | user/message\n端口纠正：7311 被别的进程占用，最后确定改用 8647。客户端和健康检查地址都要同步更新，只监听 127.0.0.1。\n\n[dsh-memory:discussion-3605e152-f9ad-4d38-a602-f7658ef17aba:2] \"discussion-3605e152-f9ad-4d38-a602-f7658ef17aba\" | 2026-11-13T20:00:02.000Z | user/message\n还有一个无关的界面布局问题，稍后单独开会话。\n\n[dsh-memory:discussion-3605e152-f9ad-4d38-a602-f7658ef17aba:1] \"discussion-3605e152-f9ad-4d38-a602-f7658ef17aba\" | 2026-11-13T20:00:01.000Z | user/message\n先记下草案，等环境确认。\nUse memory_read with source_id to verify context; quote sources, and check for newer corrections."
+        },
+        {
+          "name": "memory_read",
+          "arguments": {
+            "source_id": "dsh-memory:discussion-3605e152-f9ad-4d38-a602-f7658ef17aba:3",
+            "before": 3,
+            "after": 10,
+            "max_chars": 6000
+          },
+          "result": "Original text, raw event window 0–3:\n[dsh-memory:discussion-3605e152-f9ad-4d38-a602-f7658ef17aba:0] 2026-11-13T20:00:00.000Z | user/message\n星桥本地索引服务：先把监听端口设为 7311，客户端稍后按这个接。\n\n[dsh-memory:discussion-3605e152-f9ad-4d38-a602-f7658ef17aba:1] 2026-11-13T20:00:01.000Z | user/message\n先记下草案，等环境确认。\n\n[dsh-memory:discussion-3605e152-f9ad-4d38-a602-f7658ef17aba:2] 2026-11-13T20:00:02.000Z | user/message\n还有一个无关的界面布局问题，稍后单独开会话。\n\n[dsh-memory:discussion-3605e152-f9ad-4d38-a602-f7658ef17aba:3] 2026-11-13T20:00:03.000Z | user/message\n端口纠正：7311 被别的进程占用，最后确定改用 8647。客户端和健康检查地址都要同步更新，只监听 127.0.0.1。\nCite the relevant source_id. This bounded window may omit later changes; search again if needed."
+        }
+      ],
+      "correctionSource": "dsh-memory:discussion-3605e152-f9ad-4d38-a602-f7658ef17aba:3",
+      "events_sha256": "18c1d7b00088b820de6b212608ef8d85954a50ec0e4f9f55970cb4daa3daad67"
+    },
+    {
+      "trial": "retention-1",
+      "passed": true,
+      "checks": {
+        "completed": true,
+        "searched": true,
+        "readOriginal": true,
+        "correctedAnswer": true,
+        "citesCorrection": true,
+        "isolated": true
+      },
+      "prompt": "上次青岚导出器的日志保留策略最后怎么定的？按那个结论继续安排实现，标一下依据。",
+      "answer": "最后定的是：**普通日志只保留 7 天，30 天草案作废；用户手动导出的排障包不参与自动清理。**\n\n依据：你在 2026-11-13 的最终更正，明确说“更正并以此为准”。  \n来源：`dsh-memory:discussion-22cdf84c-b538-4fae-9568-e6f02e31ff48:3`\n\n按此结论，实现安排为：\n1. 普通日志保留期设为 7 天，清理过期日志。\n2. 自动清理明确排除手动导出的排障包。\n3. 补充测试：7 天保留边界、过期日志清理、排障包不被误删。\n\n当前环境只读，以上是实现安排，**尚未修改代码或实际派发任务**。",
+      "calls": [
+        {
+          "name": "memory_search_workspace",
+          "arguments": {
+            "query": "青岚 导出器 日志 保留 策略",
+            "limit": 8,
+            "max_chars": 2500
+          },
+          "result": "Workspace search complete.\n[dsh-memory:discussion-22cdf84c-b538-4fae-9568-e6f02e31ff48:0] \"discussion-22cdf84c-b538-4fae-9568-e6f02e31ff48\" | 2026-11-13T20:00:00.000Z | user/message\n青岚导出器日志保留策略：初稿保留 30 天，方便追踪历史导出问题。\n\n[dsh-memory:discussion-22cdf84c-b538-4fae-9568-e6f02e31ff48:3] \"discussion-22cdf84c-b538-4fae-9568-e6f02e31ff48\" | 2026-11-13T20:00:03.000Z | user/message\n更正并以此为准：普通日志最终只留 7 天，之前 30 天的方案作废；用户手动导出的排障包不跟随自动清理。\n\n[dsh-memory:discussion-22cdf84c-b538-4fae-9568-e6f02e31ff48:2] \"discussion-22cdf84c-b538-4fae-9568-e6f02e31ff48\" | 2026-11-13T20:00:02.000Z | user/message\n还有一个无关的界面布局问题，稍后单独开会话。\n\n[dsh-memory:discussion-22cdf84c-b538-4fae-9568-e6f02e31ff48:1] \"discussion-22cdf84c-b538-4fae-9568-e6f02e31ff48\" | 2026-11-13T20:00:01.000Z | user/message\n先记下草案，等环境确认。\nUse memory_read with source_id to verify context; quote sources, and check for newer corrections."
+        },
+        {
+          "name": "memory_read",
+          "arguments": {
+            "source_id": "dsh-memory:discussion-22cdf84c-b538-4fae-9568-e6f02e31ff48:3",
+            "before": 3,
+            "after": 10,
+            "max_chars": 6000
+          },
+          "result": "Original text, raw event window 0–3:\n[dsh-memory:discussion-22cdf84c-b538-4fae-9568-e6f02e31ff48:0] 2026-11-13T20:00:00.000Z | user/message\n青岚导出器日志保留策略：初稿保留 30 天，方便追踪历史导出问题。\n\n[dsh-memory:discussion-22cdf84c-b538-4fae-9568-e6f02e31ff48:1] 2026-11-13T20:00:01.000Z | user/message\n先记下草案，等环境确认。\n\n[dsh-memory:discussion-22cdf84c-b538-4fae-9568-e6f02e31ff48:2] 2026-11-13T20:00:02.000Z | user/message\n还有一个无关的界面布局问题，稍后单独开会话。\n\n[dsh-memory:discussion-22cdf84c-b538-4fae-9568-e6f02e31ff48:3] 2026-11-13T20:00:03.000Z | user/message\n更正并以此为准：普通日志最终只留 7 天，之前 30 天的方案作废；用户手动导出的排障包不跟随自动清理。\nCite the relevant source_id. This bounded window may omit later changes; search again if needed."
+        }
+      ],
+      "correctionSource": "dsh-memory:discussion-22cdf84c-b538-4fae-9568-e6f02e31ff48:3",
+      "events_sha256": "e00f7a9d07649c02948e168d5324f3e85b0e0159fd43172f3086e8e2fa706f41"
+    },
+    {
+      "trial": "storage-2",
+      "passed": true,
+      "checks": {
+        "completed": true,
+        "searched": true,
+        "readOriginal": true,
+        "correctedAnswer": true,
+        "citesCorrection": true,
+        "isolated": true
+      },
+      "prompt": "继续上次那个离线诊断包的存储方案，按最后定下的做法列三条下一步，带上讨论来源，简短点。",
+      "answer": "按最后定案：**SQLite，不用 Redis，断网独立运行**。建议下一步：\n\n1. 定义 SQLite 表结构及本地数据库文件位置。\n2. 接入本地读写，移除 Redis 和外部服务依赖。\n3. 在断网机器验证安装、数据读写及重启后持久化。\n\n讨论来源：最后纠正记录 [dsh-memory:discussion-a55fcb04-b30a-4da1-9871-e9632c10efa6:3]。",
+      "calls": [
+        {
+          "name": "memory_search_workspace",
+          "arguments": {
+            "query": "离线诊断包 存储方案",
+            "limit": 6,
+            "max_chars": 1800
+          },
+          "result": "Workspace search complete.\n[dsh-memory:discussion-a55fcb04-b30a-4da1-9871-e9632c10efa6:0] \"discussion-a55fcb04-b30a-4da1-9871-e9632c10efa6\" | 2026-11-13T20:00:00.000Z | user/message\n离线诊断包存储方案：建议使用 Redis，集中式服务便于管理。\n\n[dsh-memory:discussion-a55fcb04-b30a-4da1-9871-e9632c10efa6:3] \"discussion-a55fcb04-b30a-4da1-9871-e9632c10efa6\" | 2026-11-13T20:00:03.000Z | user/message\n纠正前面的方案：最终采用 SQLite，不用 Redis。诊断包要在断网机器独立运行，不能依赖外部服务。\n\n[dsh-memory:discussion-a55fcb04-b30a-4da1-9871-e9632c10efa6:1] \"discussion-a55fcb04-b30a-4da1-9871-e9632c10efa6\" | 2026-11-13T20:00:01.000Z | user/message\n先记下草案，等环境确认。\n\n[dsh-memory:discussion-a55fcb04-b30a-4da1-9871-e9632c10efa6:2] \"discussion-a55fcb04-b30a-4da1-9871-e9632c10efa6\" | 2026-11-13T20:00:02.000Z | user/message\n还有一个无关的界面布局问题，稍后单独开会话。\nUse memory_read with source_id to verify context; quote sources, and check for newer corrections."
+        },
+        {
+          "name": "memory_read",
+          "arguments": {
+            "source_id": "dsh-memory:discussion-a55fcb04-b30a-4da1-9871-e9632c10efa6:3",
+            "before": 3,
+            "after": 10,
+            "max_chars": 6000
+          },
+          "result": "Original text, raw event window 0–3:\n[dsh-memory:discussion-a55fcb04-b30a-4da1-9871-e9632c10efa6:0] 2026-11-13T20:00:00.000Z | user/message\n离线诊断包存储方案：建议使用 Redis，集中式服务便于管理。\n\n[dsh-memory:discussion-a55fcb04-b30a-4da1-9871-e9632c10efa6:1] 2026-11-13T20:00:01.000Z | user/message\n先记下草案，等环境确认。\n\n[dsh-memory:discussion-a55fcb04-b30a-4da1-9871-e9632c10efa6:2] 2026-11-13T20:00:02.000Z | user/message\n还有一个无关的界面布局问题，稍后单独开会话。\n\n[dsh-memory:discussion-a55fcb04-b30a-4da1-9871-e9632c10efa6:3] 2026-11-13T20:00:03.000Z | user/message\n纠正前面的方案：最终采用 SQLite，不用 Redis。诊断包要在断网机器独立运行，不能依赖外部服务。\nCite the relevant source_id. This bounded window may omit later changes; search again if needed."
+        }
+      ],
+      "correctionSource": "dsh-memory:discussion-a55fcb04-b30a-4da1-9871-e9632c10efa6:3",
+      "events_sha256": "0ceec5cf041346ffabf7d381706ee229f36452c6c19b82fc439db7abff9e3034"
+    },
+    {
+      "trial": "port-2",
+      "passed": true,
+      "checks": {
+        "completed": true,
+        "searched": true,
+        "readOriginal": true,
+        "correctedAnswer": true,
+        "citesCorrection": true,
+        "isolated": true
+      },
+      "prompt": "接着上次星桥本地索引服务的讨论，把最终监听端口和接入注意事项给我，附来源。",
+      "answer": "上次讨论的最终结论是：\n\n- **监听地址：`127.0.0.1:8647`**。\n- 原草案端口 `7311` 已废弃，原因是被其他进程占用。\n- **客户端连接地址和健康检查地址都要同步改为新端口**。\n- **仅监听 `127.0.0.1`**，不要改为 `0.0.0.0` 对外开放。\n\n来源：2026-11-13 的最终纠正消息：\n> “7311 被别的进程占用，最后确定改用 8647。客户端和健康检查地址都要同步更新，只监听 127.0.0.1。”\n\n来源 ID：`dsh-memory:discussion-66e664c8-80af-4cc7-9456-61e1b73bb702:3`",
+      "calls": [
+        {
+          "name": "memory_search_workspace",
+          "arguments": {
+            "query": "星桥 本地索引 服务 端口",
+            "limit": 6,
+            "max_chars": 2500
+          },
+          "result": "Workspace search complete.\n[dsh-memory:discussion-66e664c8-80af-4cc7-9456-61e1b73bb702:0] \"discussion-66e664c8-80af-4cc7-9456-61e1b73bb702\" | 2026-11-13T20:00:00.000Z | user/message\n星桥本地索引服务：先把监听端口设为 7311，客户端稍后按这个接。\n\n[dsh-memory:discussion-66e664c8-80af-4cc7-9456-61e1b73bb702:3] \"discussion-66e664c8-80af-4cc7-9456-61e1b73bb702\" | 2026-11-13T20:00:03.000Z | user/message\n端口纠正：7311 被别的进程占用，最后确定改用 8647。客户端和健康检查地址都要同步更新，只监听 127.0.0.1。\n\n[dsh-memory:discussion-66e664c8-80af-4cc7-9456-61e1b73bb702:2] \"discussion-66e664c8-80af-4cc7-9456-61e1b73bb702\" | 2026-11-13T20:00:02.000Z | user/message\n还有一个无关的界面布局问题，稍后单独开会话。\n\n[dsh-memory:discussion-66e664c8-80af-4cc7-9456-61e1b73bb702:1] \"discussion-66e664c8-80af-4cc7-9456-61e1b73bb702\" | 2026-11-13T20:00:01.000Z | user/message\n先记下草案，等环境确认。\nUse memory_read with source_id to verify context; quote sources, and check for newer corrections."
+        },
+        {
+          "name": "memory_read",
+          "arguments": {
+            "source_id": "dsh-memory:discussion-66e664c8-80af-4cc7-9456-61e1b73bb702:3",
+            "before": 3,
+            "after": 10,
+            "max_chars": 6000
+          },
+          "result": "Original text, raw event window 0–3:\n[dsh-memory:discussion-66e664c8-80af-4cc7-9456-61e1b73bb702:0] 2026-11-13T20:00:00.000Z | user/message\n星桥本地索引服务：先把监听端口设为 7311，客户端稍后按这个接。\n\n[dsh-memory:discussion-66e664c8-80af-4cc7-9456-61e1b73bb702:1] 2026-11-13T20:00:01.000Z | user/message\n先记下草案，等环境确认。\n\n[dsh-memory:discussion-66e664c8-80af-4cc7-9456-61e1b73bb702:2] 2026-11-13T20:00:02.000Z | user/message\n还有一个无关的界面布局问题，稍后单独开会话。\n\n[dsh-memory:discussion-66e664c8-80af-4cc7-9456-61e1b73bb702:3] 2026-11-13T20:00:03.000Z | user/message\n端口纠正：7311 被别的进程占用，最后确定改用 8647。客户端和健康检查地址都要同步更新，只监听 127.0.0.1。\nCite the relevant source_id. This bounded window may omit later changes; search again if needed."
+        }
+      ],
+      "correctionSource": "dsh-memory:discussion-66e664c8-80af-4cc7-9456-61e1b73bb702:3",
+      "events_sha256": "eeb1918c2e90910376ff9fbfc10593700c5e22177468307b11f44d7d9b154fdd"
+    },
+    {
+      "trial": "retention-2",
+      "passed": true,
+      "checks": {
+        "completed": true,
+        "searched": true,
+        "readOriginal": true,
+        "correctedAnswer": true,
+        "citesCorrection": true,
+        "isolated": true
+      },
+      "prompt": "上次青岚导出器的日志保留策略最后怎么定的？按那个结论继续安排实现，标一下依据。",
+      "answer": "最后定的是：**普通日志保留 7 天，30 天草案作废；用户手动导出的排障包不参与自动清理。**\n\n**依据**：2026-11-13 的最终更正明确写了“更正并以此为准”。来源：`dsh-memory:discussion-c9799e34-8d3b-4958-b9b1-e4e0fa714702:3`。\n\n按此安排实现：\n1. 普通日志自动清理期限改为 7 天。\n2. 清理范围排除手动导出的排障包。\n3. 补充测试：超期普通日志被清理、期限内日志保留、排障包不受影响。\n\n以上是实现安排，**尚未修改代码或创建任务**；当前环境为只读。",
+      "calls": [
+        {
+          "name": "memory_search_workspace",
+          "arguments": {
+            "query": "青岚 导出器 日志 保留 策略",
+            "limit": 6,
+            "max_chars": 2000
+          },
+          "result": "Workspace search complete.\n[dsh-memory:discussion-c9799e34-8d3b-4958-b9b1-e4e0fa714702:0] \"discussion-c9799e34-8d3b-4958-b9b1-e4e0fa714702\" | 2026-11-13T20:00:00.000Z | user/message\n青岚导出器日志保留策略：初稿保留 30 天，方便追踪历史导出问题。\n\n[dsh-memory:discussion-c9799e34-8d3b-4958-b9b1-e4e0fa714702:3] \"discussion-c9799e34-8d3b-4958-b9b1-e4e0fa714702\" | 2026-11-13T20:00:03.000Z | user/message\n更正并以此为准：普通日志最终只留 7 天，之前 30 天的方案作废；用户手动导出的排障包不跟随自动清理。\n\n[dsh-memory:discussion-c9799e34-8d3b-4958-b9b1-e4e0fa714702:2] \"discussion-c9799e34-8d3b-4958-b9b1-e4e0fa714702\" | 2026-11-13T20:00:02.000Z | user/message\n还有一个无关的界面布局问题，稍后单独开会话。\n\n[dsh-memory:discussion-c9799e34-8d3b-4958-b9b1-e4e0fa714702:1] \"discussion-c9799e34-8d3b-4958-b9b1-e4e0fa714702\" | 2026-11-13T20:00:01.000Z | user/message\n先记下草案，等环境确认。\nUse memory_read with source_id to verify context; quote sources, and check for newer corrections."
+        },
+        {
+          "name": "memory_read",
+          "arguments": {
+            "source_id": "dsh-memory:discussion-c9799e34-8d3b-4958-b9b1-e4e0fa714702:3",
+            "before": 3,
+            "after": 10,
+            "max_chars": 6000
+          },
+          "result": "Original text, raw event window 0–3:\n[dsh-memory:discussion-c9799e34-8d3b-4958-b9b1-e4e0fa714702:0] 2026-11-13T20:00:00.000Z | user/message\n青岚导出器日志保留策略：初稿保留 30 天，方便追踪历史导出问题。\n\n[dsh-memory:discussion-c9799e34-8d3b-4958-b9b1-e4e0fa714702:1] 2026-11-13T20:00:01.000Z | user/message\n先记下草案，等环境确认。\n\n[dsh-memory:discussion-c9799e34-8d3b-4958-b9b1-e4e0fa714702:2] 2026-11-13T20:00:02.000Z | user/message\n还有一个无关的界面布局问题，稍后单独开会话。\n\n[dsh-memory:discussion-c9799e34-8d3b-4958-b9b1-e4e0fa714702:3] 2026-11-13T20:00:03.000Z | user/message\n更正并以此为准：普通日志最终只留 7 天，之前 30 天的方案作废；用户手动导出的排障包不跟随自动清理。\nCite the relevant source_id. This bounded window may omit later changes; search again if needed."
+        }
+      ],
+      "correctionSource": "dsh-memory:discussion-c9799e34-8d3b-4958-b9b1-e4e0fa714702:3",
+      "events_sha256": "b8b154b7547c1459bd02fe5788fd71b4e484fe813a4e9bec1fbe86b64afb6348"
+    },
+    {
+      "trial": "storage-3",
+      "passed": true,
+      "checks": {
+        "completed": true,
+        "searched": true,
+        "readOriginal": true,
+        "correctedAnswer": true,
+        "citesCorrection": true,
+        "isolated": true
+      },
+      "prompt": "继续上次那个离线诊断包的存储方案，按最后定下的做法列三条下一步，带上讨论来源，简短点。",
+      "answer": "按最终定案：**SQLite，不用 Redis，断网独立运行**。下一步建议：\n\n1. 定义 SQLite 表结构及本地数据库文件位置。\n2. 接入 SQLite 读写，移除 Redis 和外部服务依赖。\n3. 做断网验收，验证诊断包独立运行及数据持久化。\n\n讨论来源：11 月 13 日最终纠正消息 [dsh-memory:discussion-f5949c40-0feb-483c-a5c6-ebfb13a1b94c:3]。",
+      "calls": [
+        {
+          "name": "memory_search_workspace",
+          "arguments": {
+            "query": "离线诊断包 存储方案 最后 定下"
+          },
+          "result": "Workspace search complete.\n[dsh-memory:discussion-f5949c40-0feb-483c-a5c6-ebfb13a1b94c:0] \"discussion-f5949c40-0feb-483c-a5c6-ebfb13a1b94c\" | 2026-11-13T20:00:00.000Z | user/message\n离线诊断包存储方案：建议使用 Redis，集中式服务便于管理。\n\n[dsh-memory:discussion-f5949c40-0feb-483c-a5c6-ebfb13a1b94c:3] \"discussion-f5949c40-0feb-483c-a5c6-ebfb13a1b94c\" | 2026-11-13T20:00:03.000Z | user/message\n纠正前面的方案：最终采用 SQLite，不用 Redis。诊断包要在断网机器独立运行，不能依赖外部服务。\n\n[dsh-memory:discussion-f5949c40-0feb-483c-a5c6-ebfb13a1b94c:2] \"discussion-f5949c40-0feb-483c-a5c6-ebfb13a1b94c\" | 2026-11-13T20:00:02.000Z | user/message\n还有一个无关的界面布局问题，稍后单独开会话。\nUse memory_read with source_id to verify context; quote sources, and check for newer corrections."
+        },
+        {
+          "name": "memory_read",
+          "arguments": {
+            "source_id": "dsh-memory:discussion-f5949c40-0feb-483c-a5c6-ebfb13a1b94c:3"
+          },
+          "result": "Original text, raw event window 0–3:\n[dsh-memory:discussion-f5949c40-0feb-483c-a5c6-ebfb13a1b94c:0] 2026-11-13T20:00:00.000Z | user/message\n离线诊断包存储方案：建议使用 Redis，集中式服务便于管理。\n\n[dsh-memory:discussion-f5949c40-0feb-483c-a5c6-ebfb13a1b94c:1] 2026-11-13T20:00:01.000Z | user/message\n先记下草案，等环境确认。\n\n[dsh-memory:discussion-f5949c40-0feb-483c-a5c6-ebfb13a1b94c:2] 2026-11-13T20:00:02.000Z | user/message\n还有一个无关的界面布局问题，稍后单独开会话。\n\n[dsh-memory:discussion-f5949c40-0feb-483c-a5c6-ebfb13a1b94c:3] 2026-11-13T20:00:03.000Z | user/message\n纠正前面的方案：最终采用 SQLite，不用 Redis。诊断包要在断网机器独立运行，不能依赖外部服务。\nCite the relevant source_id. This bounded window may omit later changes; search again if needed."
+        }
+      ],
+      "correctionSource": "dsh-memory:discussion-f5949c40-0feb-483c-a5c6-ebfb13a1b94c:3",
+      "events_sha256": "a088f65294296a2ddfd36c2f5652217b0293eeb04d6f0ff6c163f584b2a98014"
+    },
+    {
+      "trial": "port-3",
+      "passed": true,
+      "checks": {
+        "completed": true,
+        "searched": true,
+        "readOriginal": true,
+        "correctedAnswer": true,
+        "citesCorrection": true,
+        "isolated": true
+      },
+      "prompt": "接着上次星桥本地索引服务的讨论，把最终监听端口和接入注意事项给我，附来源。",
+      "answer": "上次最终确定的是 **`127.0.0.1:8647`**。\n\n接入注意事项：\n- **不要再用 `7311`**：该端口已被其他进程占用，早期草案已作废。\n- **客户端连接地址、健康检查地址都要同步改为 `8647`**。\n- **仅监听 `127.0.0.1`**，不对外网开放。\n- 历史讨论未注明协议和健康检查路径，不能据此默认 `/health`。\n\n**来源**：上次讨论的最终纠正消息（2026-11-13 20:00:03 UTC）：\n> “端口纠正：7311 被别的进程占用，最后确定改用 8647。客户端和健康检查地址都要同步更新，只监听 127.0.0.1。”\n\n来源 ID：`dsh-memory:discussion-c05fe9fb-918d-4151-aba6-9be09d2e361d:3`。已复查，未检索到更新的纠正。",
+      "calls": [
+        {
+          "name": "memory_search_workspace",
+          "arguments": {
+            "query": "星桥 本地索引服务 最终 监听端口 接入 注意事项"
+          },
+          "result": "Workspace search complete.\n[dsh-memory:discussion-c05fe9fb-918d-4151-aba6-9be09d2e361d:0] \"discussion-c05fe9fb-918d-4151-aba6-9be09d2e361d\" | 2026-11-13T20:00:00.000Z | user/message\n星桥本地索引服务：先把监听端口设为 7311，客户端稍后按这个接。\n\n[dsh-memory:discussion-c05fe9fb-918d-4151-aba6-9be09d2e361d:3] \"discussion-c05fe9fb-918d-4151-aba6-9be09d2e361d\" | 2026-11-13T20:00:03.000Z | user/message\n端口纠正：7311 被别的进程占用，最后确定改用 8647。客户端和健康检查地址都要同步更新，只监听 127.0.0.1。\n\n[dsh-memory:discussion-c05fe9fb-918d-4151-aba6-9be09d2e361d:2] \"discussion-c05fe9fb-918d-4151-aba6-9be09d2e361d\" | 2026-11-13T20:00:02.000Z | user/message\n还有一个无关的界面布局问题，稍后单独开会话。\nUse memory_read with source_id to verify context; quote sources, and check for newer corrections."
+        },
+        {
+          "name": "memory_read",
+          "arguments": {
+            "source_id": "dsh-memory:discussion-c05fe9fb-918d-4151-aba6-9be09d2e361d:3",
+            "before": 3,
+            "after": 10
+          },
+          "result": "Original text, raw event window 0–3:\n[dsh-memory:discussion-c05fe9fb-918d-4151-aba6-9be09d2e361d:0] 2026-11-13T20:00:00.000Z | user/message\n星桥本地索引服务：先把监听端口设为 7311，客户端稍后按这个接。\n\n[dsh-memory:discussion-c05fe9fb-918d-4151-aba6-9be09d2e361d:1] 2026-11-13T20:00:01.000Z | user/message\n先记下草案，等环境确认。\n\n[dsh-memory:discussion-c05fe9fb-918d-4151-aba6-9be09d2e361d:2] 2026-11-13T20:00:02.000Z | user/message\n还有一个无关的界面布局问题，稍后单独开会话。\n\n[dsh-memory:discussion-c05fe9fb-918d-4151-aba6-9be09d2e361d:3] 2026-11-13T20:00:03.000Z | user/message\n端口纠正：7311 被别的进程占用，最后确定改用 8647。客户端和健康检查地址都要同步更新，只监听 127.0.0.1。\nCite the relevant source_id. This bounded window may omit later changes; search again if needed."
+        },
+        {
+          "name": "memory_search_workspace",
+          "arguments": {
+            "query": "星桥 8647 端口 更改 接入"
+          },
+          "result": "Workspace search complete.\n[dsh-memory:discussion-c05fe9fb-918d-4151-aba6-9be09d2e361d:3] \"discussion-c05fe9fb-918d-4151-aba6-9be09d2e361d\" | 2026-11-13T20:00:03.000Z | user/message\n端口纠正：7311 被别的进程占用，最后确定改用 8647。客户端和健康检查地址都要同步更新，只监听 127.0.0.1。\n\n[dsh-memory:discussion-c05fe9fb-918d-4151-aba6-9be09d2e361d:0] \"discussion-c05fe9fb-918d-4151-aba6-9be09d2e361d\" | 2026-11-13T20:00:00.000Z | user/message\n星桥本地索引服务：先把监听端口设为 7311，客户端稍后按这个接。\n\n[dsh-memory:discussion-c05fe9fb-918d-4151-aba6-9be09d2e361d:2] \"discussion-c05fe9fb-918d-4151-aba6-9be09d2e361d\" | 2026-11-13T20:00:02.000Z | user/message\n还有一个无关的界面布局问题，稍后单独开会话。\nUse memory_read with source_id to verify context; quote sources, and check for newer corrections."
+        }
+      ],
+      "correctionSource": "dsh-memory:discussion-c05fe9fb-918d-4151-aba6-9be09d2e361d:3",
+      "events_sha256": "f2494e6c91f8b50d580ff1b7e36574727b473fe24eab3e635507604674d3eace"
+    },
+    {
+      "trial": "retention-3",
+      "passed": true,
+      "checks": {
+        "completed": true,
+        "searched": true,
+        "readOriginal": true,
+        "correctedAnswer": true,
+        "citesCorrection": true,
+        "isolated": true
+      },
+      "prompt": "上次青岚导出器的日志保留策略最后怎么定的？按那个结论继续安排实现，标一下依据。",
+      "answer": "最终定的是：**普通日志只保留 7 天，30 天草案作废；用户手动导出的排障包不参与自动清理。**\n\n**依据**：你在 2026-11-13 的最后更正明确说：\n> “更正并以此为准：普通日志最终只留 7 天，之前 30 天的方案作废；用户手动导出的排障包不跟随自动清理。”\n\n来源：`dsh-memory:discussion-196f7681-5001-4dfa-b7d6-545817de54e1:3`。未检索到更新的更正。\n\n按此结论，实现安排为：\n1. 普通日志保留期改为 **7 天**，移除旧的 30 天配置。\n2. 自动清理范围明确排除手动导出的排障包。\n3. 补充测试：7 天过期边界、普通日志清理、排障包不被误删。\n4. 在实现说明及测试中标注上述决策来源。\n\n当前环境只读，以上是实现安排，**尚未修改代码或下发任务**。",
+      "calls": [
+        {
+          "name": "memory_search_workspace",
+          "arguments": {
+            "query": "青岚 导出器 日志 保留 策略"
+          },
+          "result": "Workspace search complete.\n[dsh-memory:discussion-196f7681-5001-4dfa-b7d6-545817de54e1:0] \"discussion-196f7681-5001-4dfa-b7d6-545817de54e1\" | 2026-11-13T20:00:00.000Z | user/message\n青岚导出器日志保留策略：初稿保留 30 天，方便追踪历史导出问题。\n\n[dsh-memory:discussion-196f7681-5001-4dfa-b7d6-545817de54e1:3] \"discussion-196f7681-5001-4dfa-b7d6-545817de54e1\" | 2026-11-13T20:00:03.000Z | user/message\n更正并以此为准：普通日志最终只留 7 天，之前 30 天的方案作废；用户手动导出的排障包不跟随自动清理。\n\n[dsh-memory:discussion-196f7681-5001-4dfa-b7d6-545817de54e1:2] \"discussion-196f7681-5001-4dfa-b7d6-545817de54e1\" | 2026-11-13T20:00:02.000Z | user/message\n还有一个无关的界面布局问题，稍后单独开会话。\nUse memory_read with source_id to verify context; quote sources, and check for newer corrections."
+        },
+        {
+          "name": "memory_read",
+          "arguments": {
+            "source_id": "dsh-memory:discussion-196f7681-5001-4dfa-b7d6-545817de54e1:3"
+          },
+          "result": "Original text, raw event window 0–3:\n[dsh-memory:discussion-196f7681-5001-4dfa-b7d6-545817de54e1:0] 2026-11-13T20:00:00.000Z | user/message\n青岚导出器日志保留策略：初稿保留 30 天，方便追踪历史导出问题。\n\n[dsh-memory:discussion-196f7681-5001-4dfa-b7d6-545817de54e1:1] 2026-11-13T20:00:01.000Z | user/message\n先记下草案，等环境确认。\n\n[dsh-memory:discussion-196f7681-5001-4dfa-b7d6-545817de54e1:2] 2026-11-13T20:00:02.000Z | user/message\n还有一个无关的界面布局问题，稍后单独开会话。\n\n[dsh-memory:discussion-196f7681-5001-4dfa-b7d6-545817de54e1:3] 2026-11-13T20:00:03.000Z | user/message\n更正并以此为准：普通日志最终只留 7 天，之前 30 天的方案作废；用户手动导出的排障包不跟随自动清理。\nCite the relevant source_id. This bounded window may omit later changes; search again if needed."
+        },
+        {
+          "name": "memory_search_workspace",
+          "arguments": {
+            "query": "青岚 普通日志 7 天 排障包 最终 更正"
+          },
+          "result": "Workspace search complete.\n[dsh-memory:discussion-196f7681-5001-4dfa-b7d6-545817de54e1:3] \"discussion-196f7681-5001-4dfa-b7d6-545817de54e1\" | 2026-11-13T20:00:03.000Z | user/message\n更正并以此为准：普通日志最终只留 7 天，之前 30 天的方案作废；用户手动导出的排障包不跟随自动清理。\n\n[dsh-memory:discussion-196f7681-5001-4dfa-b7d6-545817de54e1:0] \"discussion-196f7681-5001-4dfa-b7d6-545817de54e1\" | 2026-11-13T20:00:00.000Z | user/message\n青岚导出器日志保留策略：初稿保留 30 天，方便追踪历史导出问题。\n\n[dsh-memory:discussion-196f7681-5001-4dfa-b7d6-545817de54e1:2] \"discussion-196f7681-5001-4dfa-b7d6-545817de54e1\" | 2026-11-13T20:00:02.000Z | user/message\n还有一个无关的界面布局问题，稍后单独开会话。\nUse memory_read with source_id to verify context; quote sources, and check for newer corrections."
+        }
+      ],
+      "correctionSource": "dsh-memory:discussion-196f7681-5001-4dfa-b7d6-545817de54e1:3",
+      "events_sha256": "30d6c5ffe64b65dd8565877e8fbf266a20ea615e500acbe9c3a573db3eef4341"
+    }
+  ]
+}

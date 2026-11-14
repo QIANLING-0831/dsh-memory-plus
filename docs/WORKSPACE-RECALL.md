@@ -69,3 +69,7 @@ node scripts/verify-workspace-recall.mjs "$PWD/.dsh-verify/workspace-host"
 - 首次冷历史回填和重开派生索引两轮通过；新会话得到旧讨论及其后续纠正，并可回读 `dsh-memory:old-discussion:1` 的 SQLite 最终决定和离线部署原因。
 - 跨工作区搜索不返回私有讨论，直接构造私有来源引用也被拒绝。中文 1/2 字、混排和扩展汉字 1/2/3 码点词法检索通过。
 - 这是挂载 services 的存储/工具验证，未启动完整 Web profile、原生桌面壳，也未调用在线模型生成续聊回答。
+
+### 在线模型跟进
+
+在线模型的自主检索、后续纠正识别和带引用续聊，使用独立模型会话另行验证，见 [在线验收方法与结果](ONLINE-RECALL-EVAL.md)。原有离线脚本保持不调用模型。

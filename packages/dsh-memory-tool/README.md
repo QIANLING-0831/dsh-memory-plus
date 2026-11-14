@@ -21,7 +21,7 @@ plugins:
 
 ## 模型视角
 
-交互式宿主还提供用户命令 `/memory-search <关键词>`，使用相同检索服务与上面的默认限额，直接显示本会话历史结果，不请求模型。安装 bundle 的当前开发版后，可用 `Ctrl+Alt+Shift+F`（macOS：`⌘+⌥+⇧+F`）预填命令；详见根 README 的快捷键章节。
+交互式宿主还提供用户命令 `/memory-search <关键词>`，使用相同检索服务与上面的默认限额，直接显示本会话历史结果，不请求模型。安装 bundle 的v0.3.0 bundle 已包含后，可用 `Ctrl+Alt+Shift+F`（macOS：`⌘+⌥+⇧+F`）预填命令；详见根 README 的快捷键章节。
 
 ```
 memory_search(query: "EPERM src/a.ts", limit: 3, max_chars: 600)
@@ -43,7 +43,7 @@ DSH v0.1-rc.7 的扩展点里没有"非持久化 + KV 友好 + 尾部追加"的�
 node --test test/memory-tool.test.js
 ```
 
-## 同工作区跨会话对话（当前开发版）
+## 同工作区跨会话对话（v0.3.0 bundle 已包含）
 
 - `memory_search_workspace(query, limit?, max_chars?)`：默认最多 3 条、每条 600 个 Unicode 码点；最大 8 条、每条 4000。
 - `memory_read(source_id, before?, after?, max_chars?)`：默认前后各 3 个原始事件、总正文 6000 码点；最多前后各 10 个事件、12000 码点。事件数不等于消息数。

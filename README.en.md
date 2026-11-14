@@ -1,4 +1,4 @@
-<h1 align="center">DSH Memory Plus</h1>
+<h1 align="center">DSH Memory Pro</h1>
 
 <p align="center">Chinese search, cross-session memory and reusable skills for DeepSeek Harness.</p>
 
@@ -6,8 +6,8 @@
 
 <p align="center"><a href="#4-install">Install</a> · <a href="#keyboard-shortcuts">Shortcuts</a> · <a href="#demos">Search demo</a> · <a href="#1-packages">Packages</a> · <a href="docs/MEMORY-HOST-VERIFICATION.md">Verification</a></p>
 
-> **Development update** · Five memory and skill shortcuts, with Windows Web walkthroughs. [View keys and visible effects →](#keyboard-shortcuts)<br>
-> Available in the current source; not included in the published v0.2.2 asset.
+> **v0.3.0 · DSH Memory Pro** · Same-workspace conversation search, cited original-text readback, and five memory/skill shortcuts. [View keys and visible effects →](#keyboard-shortcuts)<br>
+> Previously DSH Memory Plus. Existing package names, databases and shortcut bindings remain compatible.
 
 141 automated tests and all 8 package checks pass. [Full bundle verification](docs/MEMORY-HOST-VERIFICATION.md) · [CJK host verification](docs/CJK-HOST-VERIFICATION.md)
 
@@ -22,7 +22,7 @@ Real engine output: supplementary Han queries of 1/2/3 code points, short-query 
 
 </details>
 
-**Development source only (not in v0.2.2):** same-workspace cross-conversation search and cited original-text readback. See [usage and verification scope](docs/WORKSPACE-RECALL.md).
+**Included in the v0.3.0 Release bundle:** same-workspace cross-conversation search and cited original-text readback. See [usage and verification scope](docs/WORKSPACE-RECALL.md).
 
 Eight community memory packages for DeepSeek Harness (DSH): CJK search, tool-result dedup, hybrid vector/full-text recall, cross-session core memory, traceable compaction and skill management. Pinned memories and skills carry provenance and cannot be changed by model tools or background evolution. Phases 0–3 are implemented; the CJK backend is verified with live and cold history in the complete `0.2.0-rc.2` Web host. Native desktop shells await community validation.
 
@@ -118,12 +118,16 @@ Stage 3  merge candidates → pointers for already-visible items → budget trim
 Install the versioned Release bundle with one command:
 
 ```sh
-dsh plugin --profile headless add https://github.com/QIANLING-0831/dsh-memory-plus/releases/download/v0.2.2/dsh-memory-bundle-0.2.2.tgz
+dsh plugin --profile headless add https://github.com/QIANLING-0831/dsh-memory-plus/releases/download/v0.3.0/dsh-memory-bundle-0.3.0.tgz
 ```
 
 Requires Node.js 24, a compatible DSH, and pnpm on PATH. Replace `headless` with `web` for a Web profile. The `.tgz` contains the patch and all seven plugin implementations, exposed as bundle subpaths. DSH installs external dependencies automatically: no source checkout, per-package registration, separate `pnpm install`, or retained source directory is required. The package has no `workspace:`, `file:` or `link:` dependencies.
 
-The fixed URL points to the installable asset in [v0.2.2](https://github.com/QIANLING-0831/dsh-memory-plus/releases/tag/v0.2.2), with a `SHA256SUMS` file. It is not the automatically generated Source code archive. These packages are not published to npm. `node scripts/pack-release.mjs` rebuilds the standalone tarball; the tag workflow tests and publishes Release assets without npm credentials.
+The fixed URL points to the installable asset in [v0.3.0](https://github.com/QIANLING-0831/dsh-memory-plus/releases/tag/v0.3.0), with a `SHA256SUMS` file. It is not the automatically generated Source code archive. These packages are not published to npm. `node scripts/pack-release.mjs` rebuilds the standalone tarball; the tag workflow tests and publishes Release assets without npm credentials.
+
+To upgrade, run the Release URL command for the same profile, then restart DSH and refresh the browser. Do not delete memory databases. Explicit paths and shortcut IDs are unchanged. The plugin's v0.3.0 version is independent of the host DSH compatibility range.
+
+In a new conversation in the same workspace, try: “Continue our previous discussion; confirm the final decision and cite the original messages.” The model can search with `memory_search_workspace` and verify corrections with `memory_read`. Existing `/memory-search` and its shortcut still search only the current conversation.
 
 From an existing checkout, use `bash scripts/install.sh headless` (Linux/macOS) or `.\scripts\install.ps1 -Profile headless` (Windows/PowerShell).
 
@@ -155,7 +159,7 @@ The model gets seven tools:
 
 ### Memory and skill shortcuts
 
-**Windows browser** · DSH `0.2.0-rc.2` · **Development source, unreleased**
+**Windows browser** · DSH `0.2.0-rc.2` · **Included in v0.3.0**
 
 Press all four keys together in the main conversation. List actions show results immediately; search and pin actions prepare a command for you to complete and confirm.
 
@@ -181,15 +185,15 @@ More walkthroughs: [List memories](docs/shortcuts-memory-list.svg) · [Pin memor
 Actual DSH page screenshots, in Chinese, captured on Linux Chromium using Windows key-mode emulation. Orange outlines and magnified regions are tutorial annotations; native Windows key delivery has not been verified. [Full guide and verification scope →](docs/SHORTCUTS.md)
 
 <details>
-<summary>Install the development source and check other platforms</summary>
+<summary>Installation and other platforms</summary>
 
-Install the current checkout into the `web` profile. On Windows / PowerShell:
+Use the Release URL above with the `web` profile, or install an existing checkout on Windows / PowerShell:
 
 ```powershell
 .\scripts\install.ps1 -Profile web
 ```
 
-Restart DSH and reload the page. Search for `memory plus` in the host shortcut settings to view or edit bindings. The shortcut-service baseline is DSH `0.2.0-rc.2`; hosts without that service retain existing memory features.
+Restart DSH and reload the page. Search for `memory pro` (the old `memory plus` alias also works) in the host shortcut settings to view or edit bindings. The shortcut-service baseline is DSH `0.2.0-rc.2`; hosts without that service retain existing memory features.
 
 macOS defaults replace Ctrl with ⌘ and Alt with ⌥. Linux Desktop declares the Windows combinations. Linux browsers have no defaults under the host's policy and use the slash commands. Native Windows/macOS/Linux desktop key delivery awaits actual-device testing.
 

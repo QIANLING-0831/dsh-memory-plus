@@ -10,14 +10,14 @@ window.__ModuleLoader__.load({
 					skills: "记忆：查看可用技能", skillPin: "记忆：固定一个技能",
 					noSession: "请先打开一个会话。", busy: "该命令正在执行。",
 					draft: "已保留当前草稿。请先处理草稿，再使用此快捷键。",
-					unavailable: "记忆命令不可用，请检查 Memory Plus 插件是否已加载。"
+					unavailable: "记忆命令不可用，请检查 Memory Pro 插件是否已加载。"
 				};
 				const en = {
 					search: "Memory: search session history", list: "Memory: list persistent memories", pin: "Memory: pin a memory",
 					skills: "Memory: list available skills", skillPin: "Memory: pin a skill",
 					noSession: "Open a conversation first.", busy: "This command is already running.",
 					draft: "Your draft is preserved. Finish it before using this shortcut.",
-					unavailable: "Memory command unavailable. Check that Memory Plus is loaded."
+					unavailable: "Memory command unavailable. Check that Memory Pro is loaded."
 				};
 				scope.effect(() => scope.locale.register("memoryPlus", { zh, en }));
 				const t = scope.locale.bind("memoryPlus");
@@ -34,7 +34,7 @@ window.__ModuleLoader__.load({
 				for (const [id, code, command, prepare] of actions) {
 					const binding = { code, modifiers: ["primary", "alt", "shift"] };
 					scope.effect(() => scope.shortcuts.register({
-						id: `memoryPlus.${id}`, label: () => t(id), aliases: [command, "memory plus"],
+						id: `memoryPlus.${id}`, label: () => t(id), aliases: [command, "memory pro", "memory plus"],
 						defaults: {
 							"desktop:windows": binding, "desktop:macos": binding, "desktop:linux": binding,
 							"web:windows": binding, "web:macos": binding

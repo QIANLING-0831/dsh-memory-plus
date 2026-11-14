@@ -1,6 +1,6 @@
-# Memory Plus 快捷键
+# Memory Pro 快捷键
 
-适用对象是本仓库的记忆/技能插件套件。快捷键由 bundle 的可选浏览器模块注册，后端服务与无界面的 profile 不依赖浏览器服务。当前源码包含这些功能；已发布的 v0.2.2 不包含。
+适用对象是本仓库的记忆/技能插件套件。快捷键由 bundle 的可选浏览器模块注册，后端服务与无界面的 profile 不依赖浏览器服务。v0.3.0 Release 包已包含这些功能。
 
 ## Windows 浏览器网页版：按下后究竟发生什么
 
@@ -51,7 +51,7 @@
 
 ## 安装与验证
 
-从当前 checkout 按主 README 安装到 `web` profile，重启并刷新页面。搜索宿主快捷键面板中的 `memory plus` 可找到五个动作。浏览器模块等待 `shortcuts` 等服务就绪；没有这些服务的旧宿主保持原有功能。键盘接口的验证基线是 `0.2.0-rc.2`，不是对未来版本 API 的保证。
+按主 README 的 Release URL 安装到 `web` profile，重启并刷新页面。搜索宿主快捷键面板中的 `memory pro`（旧别名 `memory plus` 仍可用）可找到五个动作。浏览器模块等待 `shortcuts` 等服务就绪；没有这些服务的旧宿主保持原有功能。键盘接口的验证基线是 `0.2.0-rc.2`，不是对未来版本 API 的保证。
 
 ```sh
 npm run test:single

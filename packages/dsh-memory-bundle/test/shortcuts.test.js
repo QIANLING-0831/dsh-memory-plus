@@ -63,6 +63,8 @@ test("five configurable commands prepare input without sending or pinning", () =
 	const f = setup();
 	assert.equal(f.commands.size, 5);
 	for (const command of f.commands.values()) {
+		assert.ok(command.aliases.includes("memory pro"));
+		assert.ok(command.aliases.includes("memory plus"), "old search alias and shortcut IDs remain compatible");
 		assert.equal(command.defaults["web:linux"], undefined, "honor host Linux browser restrictions");
 		assert.equal(command.modals.length, 0);
 	}

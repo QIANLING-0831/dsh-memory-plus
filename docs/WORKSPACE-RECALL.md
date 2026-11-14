@@ -1,6 +1,6 @@
 # 同工作区跨会话搜索与原文回读
 
-当前开发源码新增两个工具，尚未发布到 v0.2.2。按根 README 从本 checkout 安装并重启实际使用的 profile 后，模型可看到它们；无需额外服务或新增数据库。旧 `memory_search`、`/memory-search` 仍只搜索当前会话。
+DSH Memory Pro v0.3.0 安装包包含以下两个工具。按根 README 安装或升级 Release 包并重启实际使用的 profile 后，模型可看到它们；无需额外服务或新增数据库。旧 `memory_search`、`/memory-search` 仍只搜索当前会话。
 
 ## 使用场景
 

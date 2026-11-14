@@ -1,4 +1,4 @@
-<h1 align="center">DSH Memory Plus</h1>
+<h1 align="center">DSH Memory Pro</h1>
 
 <p align="center">为 DeepSeek Harness 补齐中文检索、跨会话记忆与可复用技能。</p>
 
@@ -8,8 +8,8 @@
 
 <p align="center"><a href="#4-安装">安装</a> · <a href="#keyboard-shortcuts">快捷键</a> · <a href="#demos">中文检索演示</a> · <a href="#1-插件一览">插件一览</a> · <a href="docs/MEMORY-HOST-VERIFICATION.md">验证记录</a></p>
 
-> **开发版更新** · 新增 5 项记忆与技能快捷键，附 Windows 网页版实际操作演示。[查看按键与屏幕效果 →](#keyboard-shortcuts)<br>
-> 当前源码可用，尚未包含在已发布的 v0.2.2 中。
+> **v0.3.0 · DSH Memory Pro** · 新增同工作区跨会话搜索、带来源的原文回读，并包含 5 项记忆与技能快捷键。[查看按键与屏幕效果 →](#keyboard-shortcuts)<br>
+> 原名 DSH Memory Plus；现有包名、数据库和快捷键绑定保持兼容。
 
 141 项自动测试、8 个包检查通过。[完整记忆套件验证](docs/MEMORY-HOST-VERIFICATION.md) · [CJK 宿主验证](docs/CJK-HOST-VERIFICATION.md)
 
@@ -63,7 +63,7 @@ DSH `>=0.1.5-rc.3 <0.3.0`（cordis `^4.0.1`），已在 `0.1.5-rc.3` 与 `0.2.0-
 
 ---
 
-当前开发版新增**同工作区跨会话搜索与原文回读**，尚未包含在 v0.2.2 发布包中。先用 `memory_search_workspace` 找到旧讨论，再用 `memory_read` 核对原文和后续纠正。[用法与验证范围](docs/WORKSPACE-RECALL.md)。
+**v0.3.0 安装包已包含同工作区跨会话搜索与原文回读**。先用 `memory_search_workspace` 找到旧讨论，再用 `memory_read` 核对原文和后续纠正。[用法与验证范围](docs/WORKSPACE-RECALL.md)。
 
 ## 1. 插件一览
 
@@ -150,14 +150,18 @@ Stage 3  合并候选 → 已在上下文的替换为指针 → 预算裁剪
 ### 方式一：安装版本化 Release 包（推荐）
 
 ```sh
-dsh plugin --profile headless add https://github.com/QIANLING-0831/dsh-memory-plus/releases/download/v0.2.2/dsh-memory-bundle-0.2.2.tgz
+dsh plugin --profile headless add https://github.com/QIANLING-0831/dsh-memory-plus/releases/download/v0.3.0/dsh-memory-bundle-0.3.0.tgz
 ```
 
 需要 Node.js 24、兼容版本的 `dsh`，以及 PATH 上可用的 pnpm。将 `headless` 改成 `web` 可安装到 Web profile。
 
-Release 包内含 bundle patch 和七个插件的实现代码，通过 bundle 的子路径导出加载；安装时只需添加这一个包，DSH 会自动安装其外部依赖。包内没有 `workspace:` / `file:` / `link:` 依赖，无需 clone 源码、逐包注册或另跑 `pnpm install`，也不依赖本地源码目录。固定版本 URL 对应 [v0.2.2 Release](https://github.com/QIANLING-0831/dsh-memory-plus/releases/tag/v0.2.2)，同时提供 `SHA256SUMS`。
+Release 包内含 bundle patch 和七个插件的实现代码，通过 bundle 的子路径导出加载；安装时只需添加这一个包，DSH 会自动安装其外部依赖。包内没有 `workspace:` / `file:` / `link:` 依赖，无需 clone 源码、逐包注册或另跑 `pnpm install`，也不依赖本地源码目录。固定版本 URL 对应 [v0.3.0 Release](https://github.com/QIANLING-0831/dsh-memory-plus/releases/tag/v0.3.0)，同时提供 `SHA256SUMS`。
 
 尚未发布到 npm；这里使用的是可直接安装的 `.tgz` 资产，而不是 GitHub 自动生成的 Source code 压缩包。
+
+升级已有安装：把上面的命令指向原来使用的 profile（例如 `web`），重新添加 v0.3.0 URL，再重启 DSH 并刷新网页。无需删除数据库或重新保存事实；自定义 `path` 和快捷键 ID 保持不变。插件 v0.3.0 与宿主 DSH 的版本号独立，宿主兼容范围仍以下文为准。
+
+安装后，在同一工作区的新会话中试一句：“继续上次讨论的方案，先确认最终决定，附上原文来源。”模型可用 `memory_search_workspace` 搜索，再用 `memory_read` 核对纠正内容。原来的 `/memory-search` 和快捷键仍只搜当前会话，不要与新工具混淆。[完整用法与验证范围](docs/WORKSPACE-RECALL.md)。
 
 ### 方式二：从已有 checkout 安装（含 Windows）
 
@@ -222,7 +226,7 @@ cd $env:DSH_HOME/profiles/<profile> && pnpm install
 
 ### 5.1 记忆与技能快捷键
 
-**Windows 浏览器网页版** · DSH `0.2.0-rc.2` · **开发版，尚未发布**
+**Windows 浏览器网页版** · DSH `0.2.0-rc.2` · **v0.3.0 已包含**
 
 在主聊天页同时按下组合键。查看类操作直接显示结果；搜索和固定操作先填入命令，由你补全并确认。
 
@@ -248,15 +252,15 @@ cd $env:DSH_HOME/profiles/<profile> && pnpm install
 演示为真实 DSH 网页逐帧截图，采集于 Linux Chromium 的 Windows 按键模式；橙框和放大区为讲解标注，原生 Windows 实机按键尚未验证。[完整使用说明与验证范围 →](docs/SHORTCUTS.md)
 
 <details>
-<summary>安装开发版与其他平台说明</summary>
+<summary>安装与其他平台说明</summary>
 
-从当前 checkout 安装到 `web` profile。Windows / PowerShell：
+可按上方 Release URL 安装到 `web` profile；从源码安装时，Windows / PowerShell：
 
 ```powershell
 .\scripts\install.ps1 -Profile web
 ```
 
-完成后重启 DSH 并刷新页面，在宿主快捷键面板中搜索 `memory plus` 可查看或改键。快捷键注册服务的验证基线为 DSH `0.2.0-rc.2`；旧宿主没有该服务时继续提供原有记忆功能。
+完成后重启 DSH 并刷新页面，在宿主快捷键面板中搜索 `memory pro`（也兼容 `memory plus`）可查看或改键。快捷键注册服务的验证基线为 DSH `0.2.0-rc.2`；旧宿主没有该服务时继续提供原有记忆功能。
 
 macOS 的默认组合将 Ctrl 换成 ⌘、Alt 换成 ⌥；Linux 桌面声明与 Windows 相同的组合。Linux 浏览器没有这些默认组合，使用同名斜杠命令。Windows/macOS/Linux 桌面壳的原生按键投递仍待实机验证。
 

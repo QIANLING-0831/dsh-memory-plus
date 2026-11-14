@@ -1,7 +1,7 @@
 {
   "name": "dsh-memory-bundle",
-  "description": "Meta-bundle: installs all dsh-memory plugins (CJK search, dedup, hybrid memory index, memory tool, compaction locator, core memory with a user-pinned no-model-write layer, skill manager + provenance-guarded self-evolution) into a DeepSeek Harness profile as one patch layer.",
-  "version": "0.2.2",
+  "description": "DSH Memory Pro: standalone bundle with CJK search, same-workspace conversation recall and cited original-text readback, core facts, protected skills and memory shortcuts.",
+  "version": "0.3.0",
   "publishConfig": {
     "access": "public"
   },

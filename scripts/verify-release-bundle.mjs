@@ -26,9 +26,11 @@ const privateId = "release-private-discussion";
 try {
 	await mkdir(workspace);
 	prepareProfile("web");
-	const install = await promisify(execFile)(process.execPath, [join(runtime, "node_modules/@deepseek-ai/dsh/lib/bin.js"), "plugin", "--profile", "web", "add", asset], {
+	const installing = promisify(execFile)(process.execPath, [join(runtime, "node_modules/@deepseek-ai/dsh/lib/bin.js"), "plugin", "--profile", "web", "add", asset], {
 		cwd: runtime, env: process.env, timeout: 300000, maxBuffer: 10 * 1024 * 1024
 	});
+	installing.child.stdin.end();
+	const install = await installing;
 	await writeFile(join(home, "install.log"), install.stdout + install.stderr);
 	const manifest = JSON.parse(await readFile(join(home, "profiles/web/package.json"), "utf8"));
 	assert.deepEqual(Object.keys(manifest.dependencies), ["dsh-memory-bundle"], "single bundle install; no individual source packages");

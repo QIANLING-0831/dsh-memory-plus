@@ -8,7 +8,7 @@
 
 <p align="center"><a href="#4-安装">安装</a> · <a href="#keyboard-shortcuts">快捷键</a> · <a href="#demos">中文检索演示</a> · <a href="#1-插件一览">插件一览</a> · <a href="docs/MEMORY-HOST-VERIFICATION.md">验证记录</a></p>
 
-> **v0.3.0 · DSH Memory Pro** · 新增同工作区跨会话搜索、带来源的原文回读，并包含 5 项记忆与技能快捷键。[查看按键与屏幕效果 →](#keyboard-shortcuts)<br>
+> **v0.3.1 · DSH Memory Pro** · 补齐删除后的索引回收与在途写入保护，保留跨会话搜索、原文回读和 5 项快捷键。[查看按键与屏幕效果 →](#keyboard-shortcuts)<br>
 > 原名 DSH Memory Plus，仓库现为 `dsh-memory-pro`；旧链接继续跳转，包名、数据库和快捷键绑定保持兼容。
 
 152 项自动测试、8 个包检查通过。[完整记忆套件验证](docs/MEMORY-HOST-VERIFICATION.md) · [CJK 宿主验证](docs/CJK-HOST-VERIFICATION.md)
@@ -41,9 +41,9 @@
 | 记住偏好、规则和长期事实 | `memory_remember`；重要规则可用 `/memory-pin` 固定 |
 | 找回当前会话较早的细节 | `memory_search`；用户命令 `/memory-search` 也仍只搜当前会话 |
 
-**已验证的范围**：v0.3.0 安装包通过 DSH `0.2.0-rc.2` / Linux 完整 Web profile 的安装、首次启动和冷重启；在线 `gpt-6.1-sol` 经测试桥调用真实工具，三类续聊各三次，9/9 通过。后者不是完整 DSH AgentLoop 或原生桌面端的在线验收。[发布与包验证](https://github.com/QIANLING-0831/dsh-memory-pro/releases/tag/v0.3.0) · [在线验收记录](docs/ONLINE-RECALL-EVAL.md)
+**已验证的范围**：v0.3.1 安装包通过 DSH `0.2.0-rc.2` / Linux 完整 Web profile 的全新安装、从 v0.3.0 升级和冷重启；旧索引回收、在途写入拒绝、原有事实/固定记忆及自定义数据库路径均验证通过。[安装与升级验收](docs/RELEASE-UPGRADE-VERIFICATION.md)。此前在线 `gpt-6.1-sol` 经测试桥调用真实工具，三类续聊各三次，9/9 通过；本次未重跑在线模型，该记录也不是完整 DSH AgentLoop 或原生桌面端验收。[在线验收记录](docs/ONLINE-RECALL-EVAL.md)
 
-主分支另已补上删除来源的索引回收与在途写入保护，尚未包含在 v0.3.0 发布包。[行为边界与验证](docs/DELETED-SESSION-INDEX.md)。
+v0.3.1 已包含删除来源的索引回收与在途写入保护。离线删除会在下次检索或原文回读时清理；升级后请重启共享该派生库的所有 DSH 进程。[行为边界与验证](docs/DELETED-SESSION-INDEX.md)。
 
 ## 项目概览
 
@@ -166,16 +166,16 @@ Stage 3  合并候选 → 已在上下文的替换为指针 → 预算裁剪
 ### 方式一：安装版本化 Release 包（推荐）
 
 ```sh
-dsh plugin --profile headless add https://github.com/QIANLING-0831/dsh-memory-pro/releases/download/v0.3.0/dsh-memory-bundle-0.3.0.tgz
+dsh plugin --profile headless add https://github.com/QIANLING-0831/dsh-memory-pro/releases/download/v0.3.1/dsh-memory-bundle-0.3.1.tgz
 ```
 
 需要 Node.js 24、兼容版本的 `dsh`，以及 PATH 上可用的 pnpm。将 `headless` 改成 `web` 可安装到 Web profile。
 
-Release 包内含 bundle patch 和七个插件的实现代码，通过 bundle 的子路径导出加载；安装时只需添加这一个包，DSH 会自动安装其外部依赖。包内没有 `workspace:` / `file:` / `link:` 依赖，无需 clone 源码、逐包注册或另跑 `pnpm install`，也不依赖本地源码目录。固定版本 URL 对应 [v0.3.0 Release](https://github.com/QIANLING-0831/dsh-memory-pro/releases/tag/v0.3.0)，同时提供 `SHA256SUMS`。
+Release 包内含 bundle patch 和七个插件的实现代码，通过 bundle 的子路径导出加载；安装时只需添加这一个包，DSH 会自动安装其外部依赖。包内没有 `workspace:` / `file:` / `link:` 依赖，无需 clone 源码、逐包注册或另跑 `pnpm install`，也不依赖本地源码目录。固定版本 URL 对应 [v0.3.1 Release](https://github.com/QIANLING-0831/dsh-memory-pro/releases/tag/v0.3.1)，同时提供 `SHA256SUMS`。
 
 尚未发布到 npm；这里使用的是可直接安装的 `.tgz` 资产，而不是 GitHub 自动生成的 Source code 压缩包。
 
-升级已有安装：把上面的命令指向原来使用的 profile（例如 `web`），重新添加 v0.3.0 URL，再重启 DSH 并刷新网页。无需删除数据库或重新保存事实；自定义 `path` 和快捷键 ID 保持不变。插件 v0.3.0 与宿主 DSH 的版本号独立，宿主兼容范围仍以下文为准。
+升级已有安装：把上面的命令指向原来使用的 profile（例如 `web`），重新添加 v0.3.1 URL，再重启 DSH 并刷新网页。无需删除数据库或重新保存事实；自定义 `path` 和快捷键 ID 保持不变。混合索引 schema 2 → 3 会保留正常索引并增加删除屏障表；共享派生库的所有进程都应升级并重启。插件 v0.3.1 与宿主 DSH 的版本号独立，宿主兼容范围仍以下文为准。
 
 安装后，在同一工作区的新会话中试一句：“继续上次讨论的方案，先确认最终决定，附上原文来源。”模型可用 `memory_search_workspace` 搜索，再用 `memory_read` 核对纠正内容。原来的 `/memory-search` 和快捷键仍只搜当前会话，不要与新工具混淆。[完整用法与验证范围](docs/WORKSPACE-RECALL.md)。
 

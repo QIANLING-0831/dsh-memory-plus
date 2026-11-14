@@ -25,10 +25,18 @@ jobs:
           version=$(node -p "require('./packages/dsh-memory-bundle/package.json').version")
           test "$GITHUB_REF_NAME" = "v$version"
           node scripts/pack-release.mjs
+      - name: Verify installation and upgrade of the built artifact
+        run: |
+          runtime="$PWD/.dsh-verify/release-runtime"
+          npm install --prefix "$runtime" --ignore-scripts --no-audit --no-fund @deepseek-ai/dsh@0.2.0-rc.2 sqlite-vec@0.1.9
+          bundle_version=$(node -p "require('./packages/dsh-memory-bundle/package.json').version")
+          asset="$PWD/.dsh-verify/release/dsh-memory-bundle-$bundle_version.tgz"
+          node scripts/verify-release-bundle.mjs "$runtime" "$asset"
+          node scripts/verify-release-upgrade.mjs "$runtime" "$asset" https://github.com/QIANLING-0831/dsh-memory-pro/releases/download/v0.3.0/dsh-memory-bundle-0.3.0.tgz
       - name: Publish versioned assets
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "$GITHUB_REF_NAME" \
             .dsh-verify/release/*.tgz .dsh-verify/release/SHA256SUMS \
-            --verify-tag --generate-notes --title "DSH Memory Pro $GITHUB_REF_NAME"
+            --verify-tag --notes-file "docs/releases/$GITHUB_REF_NAME.md" --title "DSH Memory Pro $GITHUB_REF_NAME"

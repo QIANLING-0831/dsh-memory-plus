@@ -6,7 +6,7 @@
 
 <p align="center"><a href="#4-install">Install</a> · <a href="#keyboard-shortcuts">Shortcuts</a> · <a href="#demos">Search demo</a> · <a href="#1-packages">Packages</a> · <a href="docs/MEMORY-HOST-VERIFICATION.md">Verification</a></p>
 
-> **v0.3.0 · DSH Memory Pro** · Same-workspace conversation search, cited original-text readback, and five memory/skill shortcuts. [View keys and visible effects →](#keyboard-shortcuts)<br>
+> **v0.3.1 · DSH Memory Pro** · Deleted-session index cleanup and in-flight write protection, alongside workspace recall, cited readback and five memory/skill shortcuts. [View keys and visible effects →](#keyboard-shortcuts)<br>
 > Previously DSH Memory Plus; the repository is now `dsh-memory-pro`. Old links redirect, and package names, databases and shortcut bindings remain compatible.
 
 152 automated tests and all 8 package checks pass. [Full bundle verification](docs/MEMORY-HOST-VERIFICATION.md) · [CJK host verification](docs/CJK-HOST-VERIFICATION.md)
@@ -37,7 +37,7 @@ The model can use `memory_search_workspace` to find the discussion and `memory_r
 | Keep preferences and durable facts | `memory_remember`; `/memory-pin` protects important user rules |
 | Recall earlier steps in the current conversation | `memory_search`; `/memory-search` also remains current-session only |
 
-**Verified scope:** the v0.3.0 bundle passed installation, live and cold-reboot checks in DSH `0.2.0-rc.2` / Linux's full Web profile. Separately, online `gpt-6.1-sol` passed 9/9 continuation trials through a test bridge to the real tools; this is not an online test of the full DSH AgentLoop or native desktop UI. [Release and package verification](https://github.com/QIANLING-0831/dsh-memory-pro/releases/tag/v0.3.0) · [Online evaluation](docs/ONLINE-RECALL-EVAL.md)
+**Verified scope:** the v0.3.1 artifact passed clean installation, upgrade from v0.3.0 and cold reboot in DSH `0.2.0-rc.2` / Linux's full Web profile, including orphan cleanup, rejected stale writes, existing facts/pinned memory and a custom index path. [Installation and upgrade verification](docs/RELEASE-UPGRADE-VERIFICATION.md). The earlier online `gpt-6.1-sol` evaluation passed 9/9 continuation trials through a bridge to real tools; it was not rerun for this release and does not cover the full DSH AgentLoop or native desktop UI. [Online evaluation](docs/ONLINE-RECALL-EVAL.md)
 
 DSH Memory Pro is a community plugin suite for DeepSeek Harness: Chinese substring search, same-workspace conversation retrieval, cited original-text readback, persistent facts and reusable skills. Eight packages ship as one installable bundle. User-pinned facts and skills are protected by the plugin's write interfaces.
 
@@ -52,7 +52,7 @@ DSH `>=0.1.5-rc.3 <0.3.0` (cordis `^4.0.1`), verified on `0.1.5-rc.3` and `0.2.0
 
 ---
 
-The main branch also reclaims deleted-session indexes and fences in-flight writes. This fix is not included in the v0.3.0 Release. [Behavior and verification](docs/DELETED-SESSION-INDEX.md).
+v0.3.1 includes deleted-session index cleanup and in-flight write protection. Offline deletions are reclaimed on the next search/readback; upgrade and restart every DSH process sharing the index. [Behavior and verification](docs/DELETED-SESSION-INDEX.md).
 
 ## When this bundle helps
 
@@ -138,14 +138,14 @@ Stage 3  merge candidates → pointers for already-visible items → budget trim
 Install the versioned Release bundle with one command:
 
 ```sh
-dsh plugin --profile headless add https://github.com/QIANLING-0831/dsh-memory-pro/releases/download/v0.3.0/dsh-memory-bundle-0.3.0.tgz
+dsh plugin --profile headless add https://github.com/QIANLING-0831/dsh-memory-pro/releases/download/v0.3.1/dsh-memory-bundle-0.3.1.tgz
 ```
 
 Requires Node.js 24, a compatible DSH, and pnpm on PATH. Replace `headless` with `web` for a Web profile. The `.tgz` contains the patch and all seven plugin implementations, exposed as bundle subpaths. DSH installs external dependencies automatically: no source checkout, per-package registration, separate `pnpm install`, or retained source directory is required. The package has no `workspace:`, `file:` or `link:` dependencies.
 
-The fixed URL points to the installable asset in [v0.3.0](https://github.com/QIANLING-0831/dsh-memory-pro/releases/tag/v0.3.0), with a `SHA256SUMS` file. It is not the automatically generated Source code archive. These packages are not published to npm. `node scripts/pack-release.mjs` rebuilds the standalone tarball; the tag workflow tests and publishes Release assets without npm credentials.
+The fixed URL points to the installable asset in [v0.3.1](https://github.com/QIANLING-0831/dsh-memory-pro/releases/tag/v0.3.1), with a `SHA256SUMS` file. It is not the automatically generated Source code archive. These packages are not published to npm. `node scripts/pack-release.mjs` rebuilds the standalone tarball; the tag workflow tests and publishes Release assets without npm credentials.
 
-To upgrade, run the Release URL command for the same profile, then restart DSH and refresh the browser. Do not delete memory databases. Explicit paths and shortcut IDs are unchanged. The plugin's v0.3.0 version is independent of the host DSH compatibility range.
+To upgrade, run the Release URL command for the same profile, then restart DSH and refresh the browser. Do not delete memory databases. Explicit paths and shortcut IDs are unchanged. Schema 2 → 3 retains healthy index rows and adds deletion fences; upgrade and restart all processes sharing the index. The plugin's v0.3.1 version is independent of the host DSH compatibility range.
 
 In a new conversation in the same workspace, try: “Continue our previous discussion; confirm the final decision and cite the original messages.” The model can search with `memory_search_workspace` and verify corrections with `memory_read`. Existing `/memory-search` and its shortcut still search only the current conversation.
 

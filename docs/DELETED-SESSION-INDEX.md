@@ -1,6 +1,6 @@
 # 删除来源的索引回收与写入屏障
 
-主分支修复，尚未发布新的安装包；v0.3.0 Release 不包含此修复。
+v0.3.1 安装包已包含此修复；v0.3.0 Release 不包含。安装/升级命令见根 README，升级后应重启所有共享派生库的 DSH 进程。
 
 此前在途索引可先读快照、等待嵌入；如果期间会话被删除，恢复后仍会写回 chunks、向量与游标。现在清理与写入共用 SQLite 的短写事务和每会话代数，旧代数不能提交。
 
@@ -37,3 +37,7 @@ node scripts/verify-workspace-recall.mjs "$PWD/.dsh-verify/workspace-host"
 ```
 
 独立 runtime 的安装见 [跨会话验收](WORKSPACE-RECALL.md#验证与复跑)。未调用在线模型；此次也未复测原生 Windows/macOS 桌面壳或大历史库性能。
+
+## v0.3.1 安装包跟进
+
+正式单包安装与从真实 v0.3.0 升级的验收，见 [安装与升级记录](RELEASE-UPGRADE-VERIFICATION.md)。此前开发包验证没有覆盖或替换 v0.3.0 Release。

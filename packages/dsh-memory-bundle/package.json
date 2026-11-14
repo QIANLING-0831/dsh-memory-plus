@@ -1,7 +1,7 @@
 {
   "name": "dsh-memory-bundle",
   "description": "DSH Memory Pro: standalone bundle with CJK search, same-workspace conversation recall and cited original-text readback, core facts, protected skills and memory shortcuts.",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "publishConfig": {
     "access": "public"
   },

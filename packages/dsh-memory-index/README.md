@@ -8,7 +8,7 @@ DSH 的混合记忆检索服务（`ctx.memorySearch`）：**FTS5 词法臂 + 本
 - **词法臂**：复用已注册的 `ctx.sessionQuery`（推荐搭配 `dsh-session-query-sqlite-cjk`，中文可用）；
 - **融合**：RRF（k=60 默认），命中标记 `matched: {lexical, vector}`；
 - **增量索引**：按会话 `last_seq` 只嵌入新事件，`indexSession()` 幂等；
-- **删除回收（主分支，尚未包含在 v0.3.0 发布包）**：检索/回读前核对宿主活/冷会话列表，回收已消失来源的 chunks、向量和游标；提交时的删除代数校验阻止在途旧写入恢复数据；
+- **删除回收（v0.3.1）**：检索/回读前核对宿主活/冷会话列表，回收已消失来源的 chunks、向量和游标；提交时的删除代数校验阻止在途旧写入恢复数据；
 - **容错**：任一臂失败自动降级，`search()` 在普通失败时返回空列表，取消信号仍抛出。
 
 ## 安装
@@ -64,7 +64,7 @@ node --test test/memory-index.test.js
 
 首次查询会读取同工作区历史并生成嵌入，大语料耗时取决于历史量；目前没有后台预热或查询级嵌入复用。详见 [范围及验收](../../docs/WORKSPACE-RECALL.md)。
 
-## 删除后的索引生命周期（主分支）
+## 删除后的索引生命周期（v0.3.1）
 
 schema 2 → 3 只增加 `session_fences`，保留原有正常索引。`pruneDeletedSessions(signal?)` 返回回收的已索引会话数；`search()`、工作区搜索和原文回读会自动调用。清理在同一 SQLite 写事务里删除 chunks、vec 和 `session_index`，并推进该会话的代数。每次索引在嵌入前登记代数，嵌入后重新核对当前来源，在提交锁内复核代数；已删除/替换的快照会拒绝写入，工作区搜索据此报告 partial。
 

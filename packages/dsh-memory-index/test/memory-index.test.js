@@ -179,7 +179,7 @@ test("independent processes can initialize together and wait for a writer before
 });
 
 test("reindexing a changed header replaces both chunks and vectors atomically", async () => {
-	const { memory, cjk } = await setup();
+	const { memory, cjk, ctx } = await setup();
 	try {
 		await memory.indexSession({ header, events });
 		const changed = { ...header, createdAt: NOW + 1 };
@@ -188,6 +188,7 @@ test("reindexing a changed header replaces both chunks and vectors atomically", 
 		await assert.rejects(() => memory.indexSession({ header: changed, events }), /embedding unavailable/);
 		assert.equal(memory._db.prepare("SELECT count(*) AS n FROM chunks").get().n, events.length);
 		memory._embed = embed;
+		ctx.sessions.get = id => id === header.id ? { header: changed } : undefined;
 		assert.equal(await memory.indexSession({ header: changed, events }), events.length);
 		assert.equal(memory._db.prepare("SELECT count(*) AS n FROM chunk_vec").get().n, events.length);
 	} finally {

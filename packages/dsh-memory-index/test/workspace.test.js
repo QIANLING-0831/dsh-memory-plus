@@ -96,7 +96,32 @@ test("new messages are indexed incrementally and deleted or moved sources cannot
 		f.cold.delete(f.old.id);
 		const remaining = await f.engine.searchWorkspace({ sessionId: f.current.id, query: "最新纠正", limit: 8 });
 		assert.ok(remaining.items.every(hit => hit.sessionId !== f.old.id));
+		assert.equal(f.engine._db.prepare("SELECT count(*) AS n FROM chunks WHERE session_id = ?").get(f.old.id).n, 0);
+		assert.equal(f.engine._db.prepare("SELECT count(*) AS n FROM session_index WHERE session_id = ?").get(f.old.id).n, 0);
 		await assert.rejects(f.engine.readWorkspaceEvent({ sessionId: f.current.id, sourceId: sourceId(f.foreign.id, 1) }), /unavailable/);
+	} finally { await f.close(); }
+});
+
+test("a workspace move during embedding is reported as unavailable", async () => {
+	const f = setup();
+	try {
+		f.cold.delete(f.old.id);
+		f.live.set(f.old.id, f.old);
+		await f.engine._ensureReady();
+		const embed = f.engine._embed;
+		let moved = false;
+		f.engine._embed = async texts => {
+			if (texts.some(text => text.includes("Redis"))) {
+				moved = true;
+				f.live.set(f.old.id, conversation(f.old.id, "/moved", ["private replacement"]));
+			}
+			return embed(texts);
+		};
+		const result = await f.engine.searchWorkspace({ sessionId: f.current.id, query: "存储方案" });
+		assert.equal(moved, true);
+		assert.equal(result.partial, true);
+		assert.ok(result.unavailableSessionIds.includes(f.old.id));
+		assert.ok(result.items.every(hit => hit.sessionId !== f.old.id));
 	} finally { await f.close(); }
 });
 
@@ -158,7 +183,8 @@ test("unrelated indexed vectors cannot crowd out the authorized session's vector
 	const f = setup();
 	try {
 		const many = conversation("many-foreign", "/foreign", Array.from({ length: 100 }, () => "中文索引优化减少Token消耗"));
-		await f.engine.indexSession(many);
+		f.cold.set(many.id, many);
+		assert.equal(await f.engine.indexSession(many), 100);
 		f.ctx.sessionQuery.searchEvents = async () => { throw new Error("vector-only trial"); };
 		const result = await f.engine.searchWorkspace({ sessionId: f.current.id, query: "中文索引优化减少Token消耗", limit: 1 });
 		assert.equal(result.items[0].sessionId, f.old.id);

@@ -11,7 +11,7 @@
 > **v0.3.0 · DSH Memory Pro** · 新增同工作区跨会话搜索、带来源的原文回读，并包含 5 项记忆与技能快捷键。[查看按键与屏幕效果 →](#keyboard-shortcuts)<br>
 > 原名 DSH Memory Plus，仓库现为 `dsh-memory-pro`；旧链接继续跳转，包名、数据库和快捷键绑定保持兼容。
 
-141 项自动测试、8 个包检查通过。[完整记忆套件验证](docs/MEMORY-HOST-VERIFICATION.md) · [CJK 宿主验证](docs/CJK-HOST-VERIFICATION.md)
+152 项自动测试、8 个包检查通过。[完整记忆套件验证](docs/MEMORY-HOST-VERIFICATION.md) · [CJK 宿主验证](docs/CJK-HOST-VERIFICATION.md)
 
 <a name="demos"></a>
 
@@ -42,6 +42,8 @@
 | 找回当前会话较早的细节 | `memory_search`；用户命令 `/memory-search` 也仍只搜当前会话 |
 
 **已验证的范围**：v0.3.0 安装包通过 DSH `0.2.0-rc.2` / Linux 完整 Web profile 的安装、首次启动和冷重启；在线 `gpt-6.1-sol` 经测试桥调用真实工具，三类续聊各三次，9/9 通过。后者不是完整 DSH AgentLoop 或原生桌面端的在线验收。[发布与包验证](https://github.com/QIANLING-0831/dsh-memory-pro/releases/tag/v0.3.0) · [在线验收记录](docs/ONLINE-RECALL-EVAL.md)
+
+主分支另已补上删除来源的索引回收与在途写入保护，尚未包含在 v0.3.0 发布包。[行为边界与验证](docs/DELETED-SESSION-INDEX.md)。
 
 ## 项目概览
 

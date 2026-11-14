@@ -9,7 +9,7 @@
 > **v0.3.0 · DSH Memory Pro** · Same-workspace conversation search, cited original-text readback, and five memory/skill shortcuts. [View keys and visible effects →](#keyboard-shortcuts)<br>
 > Previously DSH Memory Plus; the repository is now `dsh-memory-pro`. Old links redirect, and package names, databases and shortcut bindings remain compatible.
 
-141 automated tests and all 8 package checks pass. [Full bundle verification](docs/MEMORY-HOST-VERIFICATION.md) · [CJK host verification](docs/CJK-HOST-VERIFICATION.md)
+152 automated tests and all 8 package checks pass. [Full bundle verification](docs/MEMORY-HOST-VERIFICATION.md) · [CJK host verification](docs/CJK-HOST-VERIFICATION.md)
 
 <a name="demos"></a>
 
@@ -51,6 +51,8 @@ DSH `>=0.1.5-rc.3 <0.3.0` (cordis `^4.0.1`), verified on `0.1.5-rc.3` and `0.2.0
 </details>
 
 ---
+
+The main branch also reclaims deleted-session indexes and fences in-flight writes. This fix is not included in the v0.3.0 Release. [Behavior and verification](docs/DELETED-SESSION-INDEX.md).
 
 ## When this bundle helps
 

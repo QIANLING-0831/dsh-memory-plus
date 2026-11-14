@@ -37,7 +37,7 @@ import { createTestEmbedder, createTransformersEmbedder, fingerprintOf } from ".
 /** SQLite application id protecting unrelated databases from derived resets. */
 const MEMORY_APPLICATION_ID = 1146308691;
 /** Current derived-index schema version. Incompatible versions reset in place. */
-const MEMORY_SCHEMA_VERSION = 2;
+const MEMORY_SCHEMA_VERSION = 3;
 /** FTS5-style reserved markers must not collide with indexed text; none used here. */
 /**
 * Resolve and validate plugin config with defaults.
@@ -96,6 +96,13 @@ function ensureSchema(db, dims) {
       session_id         TEXT PRIMARY KEY,
       last_seq           INTEGER NOT NULL,
       header_fingerprint TEXT NOT NULL
+    ) STRICT
+  `);
+	db.exec(`
+    CREATE TABLE IF NOT EXISTS session_fences (
+      session_id TEXT PRIMARY KEY,
+      generation INTEGER NOT NULL,
+      deleted INTEGER NOT NULL DEFAULT 0 CHECK (deleted IN (0, 1))
     ) STRICT
   `);
 	db.exec(`PRAGMA user_version = ${MEMORY_SCHEMA_VERSION}`);
@@ -178,10 +185,11 @@ export class MemorySearchEngine extends Service {
 			const { user_version: version } = db.prepare("PRAGMA user_version").get();
 			if (applicationId !== 0 && applicationId !== MEMORY_APPLICATION_ID) throw new Error(`dsh-memory-index: database at "${actual}" belongs to another application`);
 			if (applicationId === 0 && db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT GLOB 'sqlite_*'").all().length > 0) throw new Error(`dsh-memory-index: database at "${actual}" is not an empty or recognized derived index`);
-			if (applicationId === MEMORY_APPLICATION_ID && version !== MEMORY_SCHEMA_VERSION) {
+			if (applicationId === MEMORY_APPLICATION_ID && version !== 2 && version !== MEMORY_SCHEMA_VERSION) {
 				db.exec("DROP TABLE IF EXISTS chunks");
 				db.exec("DROP TABLE IF EXISTS chunk_vec");
 				db.exec("DROP TABLE IF EXISTS session_index");
+				db.exec("DROP TABLE IF EXISTS session_fences");
 				db.exec("PRAGMA user_version = 0");
 			}
 			loadVec(db);
@@ -198,6 +206,56 @@ export class MemorySearchEngine extends Service {
 	async _ensureReady() {
 		this._ready ??= this._open();
 		return this._ready;
+	}
+	_generation(id) {
+		return this._db.prepare("SELECT generation FROM session_fences WHERE session_id = ?").get(id)?.generation ?? 0;
+	}
+	/** Caller holds the write transaction: remove payload and fence every older writer. */
+	_removeSession(id) {
+		const db = this._db;
+		db.prepare("DELETE FROM chunk_vec WHERE rowid IN (SELECT chunk_id FROM chunks WHERE session_id = ?)").run(id);
+		db.prepare("DELETE FROM chunks WHERE session_id = ?").run(id);
+		db.prepare("DELETE FROM session_index WHERE session_id = ?").run(id);
+		db.prepare(`INSERT INTO session_fences (session_id, generation, deleted) VALUES (?, 1, 1)
+      ON CONFLICT (session_id) DO UPDATE SET generation = generation + 1, deleted = 1`).run(id);
+	}
+	_lifecycle(event, fields) {
+		try { this.ctx.logger?.info?.(JSON.stringify({ event_name: event, ...fields })); }
+		catch { /* logging cannot change a committed cleanup */ }
+	}
+	/** Reclaim absent live/cold sources; a failed inventory never authorizes deletion. */
+	async pruneDeletedSessions(signal) {
+		await this._ensureReady();
+		signal?.throwIfAborted();
+		const db = this._db;
+		const candidates = db.prepare(`SELECT session_id, generation, header_fingerprint, last_seq
+      FROM session_fences LEFT JOIN session_index USING (session_id)
+      WHERE deleted = 0
+      UNION ALL SELECT session_id, 0, header_fingerprint, last_seq FROM session_index
+      WHERE session_id NOT IN (SELECT session_id FROM session_fences)`).all();
+		if (!candidates.length) return 0;
+		const sources = await this.ctx.sessionQuery.listSessions(signal);
+		signal?.throwIfAborted();
+		const visible = new Set(sources.map(({ header }) => header.id));
+		let removed = 0;
+		db.exec("BEGIN IMMEDIATE");
+		try {
+			for (const candidate of candidates) {
+				const id = candidate.session_id;
+				if (visible.has(id) || this.ctx.sessions.get(id) || this._generation(id) !== candidate.generation) continue;
+				const current = db.prepare("SELECT header_fingerprint, last_seq FROM session_index WHERE session_id = ?").get(id);
+				// A source indexed after our inventory began belongs to a newer observation.
+				if (current?.header_fingerprint !== (candidate.header_fingerprint ?? undefined) || current?.last_seq !== (candidate.last_seq ?? undefined)) continue;
+				this._removeSession(id);
+				if (current) removed += 1;
+			}
+			db.exec("COMMIT");
+		} catch (error) {
+			db.exec("ROLLBACK");
+			throw error;
+		}
+		if (removed) this._lifecycle("memory.index.pruned", { sessions: removed });
+		return removed;
 	}
 	/**
 	* Embed texts in bounded batches.
@@ -222,6 +280,7 @@ export class MemorySearchEngine extends Service {
 	* than the last indexed seq. A changed session header triggers a full reindex.
 	* @param session - live `Session` (or a `{ header, events }` snapshot from persistence).
 	* @returns the number of newly indexed documents.
+	* @throws when the source disappeared, changed identity, or was fenced by cleanup.
 	*/
 	async indexSession(session) {
 		await this._ensureReady();
@@ -233,12 +292,14 @@ export class MemorySearchEngine extends Service {
 		// "indexing is broken" into `memory_search` never matching anything.
 		const events = Array.isArray(session.events) ? session.events : session.snapshotEvents();
 		const { id } = session.header;
+		db.prepare(`INSERT INTO session_fences (session_id, generation) VALUES (?, 0)
+      ON CONFLICT (session_id) DO UPDATE SET deleted = 0 WHERE deleted = 1`).run(id);
+		const generation = this._generation(id);
 		const docs = buildSessionEventSearchDocuments(id, events);
 		const row = db.prepare("SELECT last_seq, header_fingerprint FROM session_index WHERE session_id = ?").get(id);
 		const headerFingerprint = fingerprintOf(session.header);
 		const lastSeq = row?.header_fingerprint === headerFingerprint ? row.last_seq : -1;
 		const fresh = docs.filter((doc) => doc.seq > lastSeq);
-		if (fresh.length === 0 && row?.header_fingerprint === headerFingerprint) return 0;
 		const insertChunk = db.prepare("INSERT INTO chunks (session_id, seq, type, time, surface, text, files) VALUES (?, ?, ?, ?, ?, ?, ?)");
 		// node:sqlite binds JS numbers as REAL; sqlite-vec requires an INTEGER
 		// rowid, so the chunk id is CAST to INTEGER at bind time.
@@ -248,9 +309,18 @@ export class MemorySearchEngine extends Service {
 		const filesBySeq = fileTagsBySeq(events);
 		const texts = fresh.map((doc) => `${this._contextPrefix(doc)}${doc.text}`);
 		const vectors = await this._embedTexts(texts);
+		const live = this.ctx.sessions.get(id);
+		const sourceHeader = live?.header ?? (await this.ctx.sessionQuery.listSessions()).find(({ header }) => header.id === id)?.header;
 		let inserted = 0;
 		db.exec("BEGIN IMMEDIATE");
 		try {
+			// This check is inside the same cross-process lock as cleanup and commit.
+			const currentHeader = this.ctx.sessions.get(id)?.header ?? (live ? undefined : sourceHeader);
+			if (this._generation(id) !== generation || !currentHeader || fingerprintOf(currentHeader) !== headerFingerprint) {
+				if (!currentHeader && this._generation(id) === generation) this._removeSession(id);
+				db.exec("COMMIT");
+				throw new Error("memory-index: source removed or replaced during indexing");
+			}
 			// Embedding yields: another caller or process may have indexed these events.
 			const current = db.prepare("SELECT last_seq, header_fingerprint FROM session_index WHERE session_id = ?").get(id);
 			if (current !== void 0 && current.header_fingerprint !== headerFingerprint) {
@@ -278,7 +348,7 @@ export class MemorySearchEngine extends Service {
       `).run(id, maxSeq, headerFingerprint);
 			db.exec("COMMIT");
 		} catch (error) {
-			db.exec("ROLLBACK");
+			if (db.isTransaction) db.exec("ROLLBACK");
 			throw error;
 		}
 		return inserted;
@@ -323,6 +393,11 @@ export class MemorySearchEngine extends Service {
 	*/
 	async search(request, exec) {
 		try {
+			try { await this.pruneDeletedSessions(exec?.signal); }
+			catch (error) {
+				if (isAbort(error)) throw error;
+				try { this.ctx.logger?.warn?.(JSON.stringify({ event_name: "memory.index.prune_failed", error: String(error) })); } catch {}
+			}
 			return await this._search(request, exec);
 		} catch (error) {
 			if (isAbort(error)) throw error;

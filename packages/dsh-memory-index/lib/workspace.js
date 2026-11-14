@@ -46,6 +46,7 @@ export async function searchWorkspace(engine, request, exec) {
 	const maxChars = bounded(request.maxChars, 600, 4000);
 	const signal = exec?.signal;
 	signal?.throwIfAborted();
+	await engine.pruneDeletedSessions(signal);
 	// listSessions merges live + persisted sources with live precedence. Cached index rows
 	// alone cannot grant access to deleted sessions or sessions moved to another workspace.
 	const sources = await engine.ctx.sessionQuery.listSessions(signal);
@@ -88,6 +89,7 @@ export async function readWorkspaceEvent(engine, request, exec) {
 	const maxChars = bounded(request.maxChars, 6000, 12000);
 	const signal = exec?.signal;
 	signal?.throwIfAborted();
+	await engine.pruneDeletedSessions(signal);
 	const sources = await engine.ctx.sessionQuery.listSessions(signal);
 	if (!sources.some(({ header }) => header.id === source.sessionId && workspaceOf(header) === workspace)) {
 		throw new Error("Source unavailable in the current workspace. Search again for an accessible source.");

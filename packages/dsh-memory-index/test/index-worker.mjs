@@ -1,6 +1,11 @@
 import MemorySearchEngine from "../lib/index.js";
 
-const engine = new MemorySearchEngine({ reflect: { provide() {} } }, { path: process.argv[2] });
+const snapshot = JSON.parse(process.argv[3]);
+const engine = new MemorySearchEngine({
+	reflect: { provide() {} },
+	sessions: { get: () => undefined },
+	sessionQuery: { listSessions: async () => [{ header: snapshot.header }] }
+}, { path: process.argv[2] });
 try {
 	await engine._ensureReady();
 	const embed = engine._embed;
@@ -11,7 +16,7 @@ try {
 		await release;
 		return vectors;
 	};
-	const count = await engine.indexSession(JSON.parse(process.argv[3]));
+	const count = await engine.indexSession(snapshot);
 	process.send({ count });
 } catch (error) {
 	process.send({ error: error.message });

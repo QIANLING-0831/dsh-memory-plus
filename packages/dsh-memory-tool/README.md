@@ -42,3 +42,16 @@ DSH v0.1-rc.7 的扩展点里没有"非持久化 + KV 友好 + 尾部追加"的�
 ```sh
 node --test test/memory-tool.test.js
 ```
+
+## 同工作区跨会话对话（当前开发版）
+
+- `memory_search_workspace(query, limit?, max_chars?)`：默认最多 3 条、每条 600 个 Unicode 码点；最大 8 条、每条 4000。
+- `memory_read(source_id, before?, after?, max_chars?)`：默认前后各 3 个原始事件、总正文 6000 码点；最多前后各 10 个事件、12000 码点。事件数不等于消息数。
+
+来源格式为 `dsh-memory:<编码后的会话ID>:<事件seq>`，可以复制给 `memory_read`，也可在回答里引用。它是持久日志定位标识，**不是已实现的 UI 点击跳转链接**。
+
+工作区取自当前活会话的绝对 `cwd`，不接受模型指定工作区。搜索涵盖同工作区当前和其他会话，默认不跨工作区。读取旧消息不会恢复或启动旧 Agent。历史文字作为证据，不作为新的用户指令或授权。
+
+搜索/回读失败会明确返回 unavailable；单个来源或召回臂失败会报告 PARTIAL，不能当作“没有历史”。取消信号继续向宿主传播。保留旧 `memory_search` 与 `/memory-search` 的当前会话用途。
+
+完整示例、限制和复跑方式见 [跨会话检索说明](../../docs/WORKSPACE-RECALL.md)。

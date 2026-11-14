@@ -7,6 +7,7 @@ import { homedir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { buildSessionEventSearchDocuments } from "@deepseek-ai/dsh-session-query";
+import { searchWorkspace, readWorkspaceEvent, workspaceOf } from "./workspace.js";
 import { createTestEmbedder, createTransformersEmbedder, fingerprintOf } from "./embed.js";
 //#region lib/types/index.js
 /**
@@ -282,37 +283,37 @@ export class MemorySearchEngine extends Service {
 		}
 		return inserted;
 	}
-	/** Ensure the session's live log is fully indexed before a search. */
-	async _ensureSessionIndexed(sessionId) {
+	/** Load fresh source data; workspace callers must never authorize from cached chunks. */
+	async _ensureSessionIndexed(sessionId, workspace, signal) {
+		signal?.throwIfAborted();
 		const live = this.ctx.sessions.get(sessionId);
-		if (live !== void 0) {
-			await this.indexSession(live);
-			return;
-		}
-		try {
-			const loaded = await this.ctx.sessionQuery.readSession(sessionId);
-			// `SessionLogSnapshot` carries the cloned header as `session` on the
-			// current session-query line; `header` is accepted as a fallback so a
-			// host that still uses the older name is not read as `undefined`.
-			await this.indexSession({ header: loaded.session ?? loaded.header, events: loaded.events });
-		} catch (error) {
-			// Best-effort by design, but never silent: a swallowed indexing failure
-			// is indistinguishable from "this session has no matches".
-			try {
-				this.ctx.logger?.warn?.(`memory-index: could not index session ${sessionId}: ${error instanceof Error ? error.message : String(error)}`);
-			} catch {
-				/* a broken logger must never mask the original failure */
-			}
-		}
+		const loaded = live !== undefined
+			? { header: live.header, events: live.snapshotEvents ? live.snapshotEvents() : live.events }
+			: await this.ctx.sessionQuery.readSession(sessionId);
+		const snapshot = { header: loaded.session ?? loaded.header, events: loaded.events };
+		signal?.throwIfAborted();
+		if (snapshot.header.id !== sessionId) throw new Error("memory-index: source session identity mismatch");
+		if (workspace !== undefined && workspaceOf(snapshot.header) !== workspace) throw new Error("memory-index: source is outside the current workspace");
+		await this.indexSession(snapshot);
+		return snapshot;
 	}
-	/** kNN over all indexed chunks (session scoping happens in JS via `chunks`). */
-	async _knn(queryVec, k) {
+	/** Search other conversations, scoped by the caller's current workspace. */
+	searchWorkspace(request, exec) {
+		return searchWorkspace(this, request, exec);
+	}
+	/** Read original text around a cited event after checking workspace membership again. */
+	readWorkspaceEvent(request, exec) {
+		return readWorkspaceEvent(this, request, exec);
+	}
+	/** Restrict the kNN candidate set before ranking so other workspaces cannot crowd it out. */
+	async _knn(queryVec, k, sessionId) {
 		const db = this._db;
 		return db.prepare(`
       SELECT rowid, distance FROM chunk_vec
       WHERE embedding MATCH ? AND k = ?
+      AND rowid IN (SELECT chunk_id FROM chunks WHERE session_id = ?)
       ORDER BY distance
-    `).all(vectorToText(queryVec), k);
+    `).all(vectorToText(queryVec), k, sessionId);
 	}
 	/**
 	* Hybrid memory search over one session's shadowed/log-only region.
@@ -321,24 +322,27 @@ export class MemorySearchEngine extends Service {
 	* @returns ranked hits (RRF-fused), best-effort.
 	*/
 	async search(request, exec) {
+		try {
+			return await this._search(request, exec);
+		} catch (error) {
+			if (isAbort(error)) throw error;
+			try {
+				this.ctx.logger?.warn?.(`memory-index: could not search session ${request.sessionId}: ${error instanceof Error ? error.message : String(error)}`);
+			} catch { /* logging cannot break best-effort recall */ }
+			return [];
+		}
+	}
+	/** Strict variant lets workspace recall report unreadable sources instead of false misses. */
+	async _search(request, exec) {
 		const signal = exec?.signal;
 		const sessionId = request.sessionId;
 		const limit = request.limit ?? this.config.topK;
 		const maxChars = request.maxChars ?? this.config.maxChars;
-		try {
-			await this._ensureReady();
-			signal?.throwIfAborted();
-			await this._ensureSessionIndexed(sessionId);
-			signal?.throwIfAborted();
-		} catch (error) {
-			if (isAbort(error)) throw error;
-			try {
-				this.ctx.logger?.warn?.(`memory-index: could not search session ${sessionId}: ${error instanceof Error ? error.message : String(error)}`);
-			} catch {
-				/* a broken logger must never mask the original failure */
-			}
-			return [];
-		}
+		await this._ensureReady();
+		const snapshot = await this._ensureSessionIndexed(sessionId, request.workspace, signal);
+		signal?.throwIfAborted();
+		const sessionTitle = truncate(snapshot.events.findLast(event => event.type === "session/title")?.data?.title ?? sessionId, 160);
+		let degraded = false;
 		// Lexical arm — best-effort; the CJK-aware provider searches all
 		// surfaces here. Callers (the recall injector) filter out hits that are
 		// already visible in the current surface via `hit.surface`.
@@ -354,6 +358,7 @@ export class MemorySearchEngine extends Service {
 			});
 		} catch (error) {
 			if (isAbort(error)) throw error;
+			degraded = true;
 			/* lexical arm unavailable → vector-only */
 		}
 		// Chunk table lookup (session scoping + RRF payload).
@@ -364,26 +369,27 @@ export class MemorySearchEngine extends Service {
 			chunkById.set(Number(entry.chunk_id), { ...entry, files: parseFiles(entry.files) });
 			idBySeq.set(entry.seq, Number(entry.chunk_id));
 		}
-		// Vector arm — kNN over all chunks, then scoped to this session in JS
-		// (vec0 metadata-column filtering is deliberately avoided: the JS-scoped
-		// JOIN is verified and precise enough at this index's scale).
+		// Vector arm — constrain rowids to the session before kNN, then join
+		// the ranked rows to the chunk payload.
 		const vectorBySeq = /* @__PURE__ */ new Map();
 		try {
 			const [queryVec] = await this._embedTexts([request.query]);
 			signal?.throwIfAborted();
-			const rows = await this._knn(queryVec, Math.max(limit, this.config.lexicalTopK) * 4);
+			const rows = await this._knn(queryVec, Math.max(limit, this.config.lexicalTopK) * 4, sessionId);
 			let rank = 0;
 			for (const row of rows) {
 				const chunkId = Number(row.rowid);
 				const chunk = chunkById.get(chunkId);
 				if (chunk === void 0 || chunk.session_id !== sessionId) continue;
 				rank += 1;
-				vectorBySeq.set(chunkId, { rank });
+				vectorBySeq.set(chunkId, { rank, distance: row.distance });
 			}
 		} catch (error) {
 			if (isAbort(error)) throw error;
+			degraded = true;
 			/* vector arm unavailable → lexical-only */
 		}
+		if (degraded && exec?.onDegraded) exec.onDegraded();
 		if (lexicalBySeq.size === 0 && vectorBySeq.size === 0) return [];
 		const scores = /* @__PURE__ */ new Map();
 		const addRank = (key, rank) => {
@@ -416,16 +422,20 @@ export class MemorySearchEngine extends Service {
 			const chunk = chunkById.get(chunkId);
 			return {
 				sessionId,
+				sessionTitle,
+				score: meta.score,
 				seq: chunk.seq,
 				type: chunk.type,
 				time: chunk.time,
 				surface: chunk.surface,
-				snippet: truncate(chunk.text, maxChars),
+				snippet: truncate(lexicalBySeq.get(chunk.seq)?.hit.snippet ?? chunk.text, maxChars),
 				files: chunk.files ?? [],
 				matched: {
 					lexical: meta.lexical,
 					vector: meta.vector
-				}
+				},
+				lexicalRank: lexicalBySeq.get(chunk.seq)?.rank,
+				vectorDistance: vectorBySeq.get(chunkId)?.distance
 			};
 		});
 	}

@@ -9,7 +9,7 @@
 > **Development update** · Five memory and skill shortcuts, with Windows Web walkthroughs. [View keys and visible effects →](#keyboard-shortcuts)<br>
 > Available in the current source; not included in the published v0.2.2 asset.
 
-130 automated tests and all 8 package checks pass. [Full bundle verification](docs/MEMORY-HOST-VERIFICATION.md) · [CJK host verification](docs/CJK-HOST-VERIFICATION.md)
+141 automated tests and all 8 package checks pass. [Full bundle verification](docs/MEMORY-HOST-VERIFICATION.md) · [CJK host verification](docs/CJK-HOST-VERIFICATION.md)
 
 <a name="demos"></a>
 
@@ -21,6 +21,8 @@
 Real engine output: supplementary Han queries of 1/2/3 code points, short-query fallback, ASCII and literal-wildcard controls. Supplementary Han is displayed as Unicode escapes for font compatibility; the engine queries the original code points. Generated from [the demo script](scripts/demo-cjk-search.mjs) using an in-memory index and a synthetic live session.
 
 </details>
+
+**Development source only (not in v0.2.2):** same-workspace cross-conversation search and cited original-text readback. See [usage and verification scope](docs/WORKSPACE-RECALL.md).
 
 Eight community memory packages for DeepSeek Harness (DSH): CJK search, tool-result dedup, hybrid vector/full-text recall, cross-session core memory, traceable compaction and skill management. Pinned memories and skills carry provenance and cannot be changed by model tools or background evolution. Phases 0–3 are implemented; the CJK backend is verified with live and cold history in the complete `0.2.0-rc.2` Web host. Native desktop shells await community validation.
 
@@ -58,7 +60,7 @@ Historical ecosystem survey and license checks: [`docs/DSH-MEMORY-ECOSYSTEM.md`]
 | [`dsh-session-query-sqlite-cjk`](packages/dsh-session-query-sqlite-cjk) | CJK-capable `sessionQuery` provider: FTS5 dual tokenizer (unicode61 + trigram) with automatic routing and a 1–2 char CJK LIKE fallback | 0 |
 | [`dsh-tool-result-dedup`](packages/dsh-tool-result-dedup) | Hash-dedup of repeated tool results (`git status` / `ls` / repeated `read`) → pointer, saving input tokens | 0 |
 | [`dsh-memory-index`](packages/dsh-memory-index) | Hybrid memory search service `ctx.memorySearch`: sqlite-vec vector arm + FTS5 lexical arm → RRF fusion; incremental per-event embedding; file-tag filtering | 1 |
-| [`dsh-memory-tool`](packages/dsh-memory-tool) | Model-facing `memory_search` tool: bounded hybrid recall over the current session's earlier conversation | 1 |
+| [`dsh-memory-tool`](packages/dsh-memory-tool) | Model-facing current-session recall, same-workspace conversation search and cited original-text readback | 1 |
 | [`dsh-compaction-locator`](packages/dsh-compaction-locator) | Near-lossless compaction: every `<compacted-summary>` carries Exact Sources locators (spill path / file path / seq range) | 2 |
 | [`dsh-memory-core`](packages/dsh-memory-core) | Cross-session core memory: workspace fact store + stable system-prompt section injection (KV-safe) + `memory_remember` tool + a **user-pinned `[pinned]` layer no tool can change** and `/memory-pin` `/memory-unpin` `/memory-list` commands | 2 |
 | [`dsh-memory-skills`](packages/dsh-memory-skills) | Skill manager + background self-evolution: `skill_write/delete/list` persist DSH-native skill files; a timer-driven reflection loop distills reusable skills from finished turns; **provenance + `/skill-pin` so the model cannot rewrite a user's skills** | 3 |
@@ -138,9 +140,11 @@ New profiles under one `DSH_HOME` share databases unless absolute paths are over
 
 ## 5. Usage
 
-The model gets five tools:
+The model gets seven tools:
 
 - `memory_search(query, limit, max_chars, file?)` — bounded hybrid recall over the current session's earlier conversation;
+- `memory_search_workspace(query, limit?, max_chars?)` — same-workspace live/cold conversation search with title, time and source citations;
+- `memory_read(source_id, before?, after?, max_chars?)` — bounded original-text windows, with workspace membership checked again on every read;
 - `memory_remember(content, topic?)` — write a durable cross-session fact; it appears at the top of later requests in the same workspace (`## Persistent Memory` block). Topics include `preference` / `convention` / `environment` / `decision` / **`lesson`** / **`correction`** / `general`;
 - `skill_write(name, description, whenToUse?, content)` — create/update a reusable skill **a model wrote** (DSH-native skill file, immediately visible to the session skill catalog);
 - `skill_delete(name)` / `skill_list()` — delete / list skills, with provenance (`(managed:model)` / `(managed:evolve)` / `(human)` / `(pinned)`).

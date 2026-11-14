@@ -1,5 +1,7 @@
 import z from "@deepseek-ai/schemastery";
 import { defineTool } from "@deepseek-ai/dsh-tools";
+import { createWorkspaceSearchTool, createMemoryReadTool } from "./workspace.js";
+export { createWorkspaceSearchTool, createMemoryReadTool } from "./workspace.js";
 //#region lib/types/index.js
 /**
 * Model-facing `memory_search` tool: hybrid lexical + semantic recall over the
@@ -127,6 +129,8 @@ function apply(ctx, config) {
 		defaultMaxChars: config.defaultMaxChars ?? 600
 	};
 	ctx.tools.register(createMemorySearchTool(ctx, resolved));
+	ctx.tools.register(createWorkspaceSearchTool(ctx, resolved));
+	ctx.tools.register(createMemoryReadTool(ctx));
 	registerMemorySearchCommand(ctx, resolved);
 }
 //#endregion

@@ -11,7 +11,7 @@
 > **开发版更新** · 新增 5 项记忆与技能快捷键，附 Windows 网页版实际操作演示。[查看按键与屏幕效果 →](#keyboard-shortcuts)<br>
 > 当前源码可用，尚未包含在已发布的 v0.2.2 中。
 
-130 项自动测试、8 个包检查通过。[完整记忆套件验证](docs/MEMORY-HOST-VERIFICATION.md) · [CJK 宿主验证](docs/CJK-HOST-VERIFICATION.md)
+141 项自动测试、8 个包检查通过。[完整记忆套件验证](docs/MEMORY-HOST-VERIFICATION.md) · [CJK 宿主验证](docs/CJK-HOST-VERIFICATION.md)
 
 <a name="demos"></a>
 
@@ -63,6 +63,8 @@ DSH `>=0.1.5-rc.3 <0.3.0`（cordis `^4.0.1`），已在 `0.1.5-rc.3` 与 `0.2.0-
 
 ---
 
+当前开发版新增**同工作区跨会话搜索与原文回读**，尚未包含在 v0.2.2 发布包中。先用 `memory_search_workspace` 找到旧讨论，再用 `memory_read` 核对原文和后续纠正。[用法与验证范围](docs/WORKSPACE-RECALL.md)。
+
 ## 1. 插件一览
 
 | 包 | 作用 | 阶段 |
@@ -70,7 +72,7 @@ DSH `>=0.1.5-rc.3 <0.3.0`（cordis `^4.0.1`），已在 `0.1.5-rc.3` 与 `0.2.0-
 | [`dsh-session-query-sqlite-cjk`](packages/dsh-session-query-sqlite-cjk) | 中文可用的会话全文检索 provider：FTS5 双 tokenizer 双表（unicode61 + trigram），按查询是否含 CJK 自动路由 | Phase 0 |
 | [`dsh-tool-result-dedup`](packages/dsh-tool-result-dedup) | 工具结果哈希去重：重复结果（git status / ls / 重复 read）替换为指针，节省输入 Token | Phase 0 |
 | [`dsh-memory-index`](packages/dsh-memory-index) | 混合记忆检索服务 `ctx.memorySearch`：sqlite-vec 向量臂 + FTS5 词法臂 → RRF 融合；事件级增量嵌入；file 词条过滤 | Phase 1 |
-| [`dsh-memory-tool`](packages/dsh-memory-tool) | 模型可调用的 `memory_search` 工具：会话旧内容混合召回，输出有界 | Phase 1 |
+| [`dsh-memory-tool`](packages/dsh-memory-tool) | 模型可调用的 `memory_search` 工具，以及同工作区跨会话搜索和带来源的原文回读，输出有界 | Phase 1 |
 | [`dsh-compaction-locator`](packages/dsh-compaction-locator) | 近无损压缩：每个 `<compacted-summary>` 追加 Exact Sources 定位符（spill 路径 / 文件路径 / seq 区间） | Phase 2 |
 | [`dsh-memory-core`](packages/dsh-memory-core) | 跨会话核心记忆：workspace 事实库 + 稳定 system-prompt section 注入（KV 安全）+ `memory_remember` 工具 + **用户固定的 `[pinned]` 层（模型改不动）** + `/memory-pin` `/memory-unpin` `/memory-list` 命令 | Phase 2 |
 | [`dsh-memory-skills`](packages/dsh-memory-skills) | 技能管理器 + 后台自我进化：`skill_write/delete/list` 写 DSH 原生技能文件；定时反思从完成回合蒸馏可复用技能（Hermes 式学习循环）；**provenance + `/skill-pin` 固定层，模型改不动用户技能** | Phase 3 |
@@ -201,9 +203,11 @@ cd $env:DSH_HOME/profiles/<profile> && pnpm install
 
 ## 5. 使用
 
-模型获得五个记忆/技能工具：
+模型获得七个记忆/技能工具：
 
 - `memory_search(query, limit, max_chars, file?)`：对本会话旧内容做混合（词法 + 语义）召回，snippet 严格有界；
+- `memory_search_workspace(query, limit?, max_chars?)`：搜索同一工作区的活会话与持久化历史，返回会话标题、时间、片段和 `source_id`；
+- `memory_read(source_id, before?, after?, max_chars?)`：按引用读取原始消息与邻近事件，每次重新检查工作区归属；
 - `memory_remember(content, topic?)`：写入跨会话持久事实，自动出现在该 workspace 后续请求的系统提示顶部（`## Persistent Memory` 区块）；`topic` 含 `preference` / `convention` / `environment` / `decision` / **`lesson`** / **`correction`** / `general`；
 - `skill_write(name, description, whenToUse?, content)`：创建/更新**模型自己写的**可复用技能（写 DSH 原生技能文件，**立即进入会话技能目录**）；
 - `skill_delete(name)` / `skill_list()`：删除 / 列出技能（`skill_list` 标注来源：`(managed:model)` / `(managed:evolve)` / `(human)` / `(pinned)`）。
@@ -307,7 +311,7 @@ macOS 的默认组合将 Ctrl 换成 ⌘、Alt 换成 ⌥；Linux 桌面声明�
 
 ```sh
 corepack pnpm install
-corepack pnpm test        # 130 项自动测试，包含多进程数据库与安装脚本回归
+corepack pnpm test        # 141 项自动测试，包含多进程数据库与安装脚本回归
 ```
 
 > 若受限沙箱拦截测试文件的子进程（`spawn EPERM`），可尝试 `corepack pnpm test:single`。多进程数据库与安装脚本测试仍需创建子进程；如果沙箱也拦截它们，应在允许测试子进程的环境运行完整套件。

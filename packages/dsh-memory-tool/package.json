@@ -1,6 +1,6 @@
 {
   "name": "dsh-memory-tool",
-  "description": "Model-facing memory_search tool for the DeepSeek Harness — hybrid lexical+semantic recall over a session's earlier conversation via ctx.memorySearch, with bounded snippets.",
+  "description": "Model-facing memory tools for DeepSeek Harness: current-session recall, same-workspace cross-conversation search and cited original-text readback with bounded output.",
   "version": "0.1.0",
   "publishConfig": {
     "access": "public"

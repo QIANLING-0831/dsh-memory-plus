@@ -1,6 +1,6 @@
 {
   "name": "dsh-memory-index",
-  "description": "Hybrid memory search for the DeepSeek Harness — sqlite-vec vector arm + FTS5 lexical arm (RRF fusion) over session events, with local bge embeddings via transformers.js. Provides ctx.memorySearch.",
+  "description": "Hybrid memory retrieval for DeepSeek Harness: session-scoped sqlite-vec + FTS5 recall, same-workspace conversation discovery and source-checked original-text readback.",
   "version": "0.1.0",
   "publishConfig": {
     "access": "public"

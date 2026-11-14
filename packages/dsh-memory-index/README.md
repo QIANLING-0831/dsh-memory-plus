@@ -8,7 +8,7 @@ DSH 的混合记忆检索服务（`ctx.memorySearch`）：**FTS5 词法臂 + 本
 - **词法臂**：复用已注册的 `ctx.sessionQuery`（推荐搭配 `dsh-session-query-sqlite-cjk`，中文可用）；
 - **融合**：RRF（k=60 默认），命中标记 `matched: {lexical, vector}`；
 - **增量索引**：按会话 `last_seq` 只嵌入新事件，`indexSession()` 幂等；
-- **容错**：任一臂失败自动降级，`search()` 永不抛错（返回空列表）。
+- **容错**：任一臂失败自动降级，`search()` 在普通失败时返回空列表，取消信号仍抛出。
 
 ## 安装
 
@@ -52,3 +52,13 @@ plugins:
 ```sh
 node --test test/memory-index.test.js
 ```
+
+## 同工作区搜索与原文回读
+
+`searchWorkspace({sessionId, query, limit?, maxChars?}, exec)` 以当前活会话的绝对 cwd 为范围，通过宿主 `sessionQuery.listSessions()` 发现活/冷历史；同工作区来源按需增量索引。候选沿用每会话的词法与向量召回，再跨会话重排（词法按源内名次、向量按距离，RRF 融合，时间破同分）。向量候选在 kNN 前按会话限制，其他工作区不能挤占候选。
+
+返回 `{items, partial, unavailableSessionIds, degradedSessionIds}`。每项带 `sourceId/sessionId/sessionTitle/seq/time`。发现来源失败会报错；单个来源或召回臂失败会标记 partial，不隐瞒成零命中。
+
+`readWorkspaceEvent({sessionId, sourceId, before?, after?, maxChars?}, exec)` 通过宿主 `readEvent()` 回读有界原文窗口，先后检查列表及实际读取 header 的工作区归属。不会以旧派生索引授予已删除/已迁移会话的访问。只返回公开文本，不含模型 reasoning、请求头或二进制附件。
+
+无需改库 schema；沿用现有 chunks/vec 和每会话增量游标。首次查询会读取同工作区历史并生成嵌入，大语料耗时取决于历史量；目前没有后台预热或查询级嵌入复用。详见 [范围及验收](../../docs/WORKSPACE-RECALL.md)。

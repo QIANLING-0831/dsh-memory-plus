@@ -39,6 +39,10 @@ test('the release tarball contains every plugin and resolves without workspace p
     assert.doesNotMatch(JSON.stringify(manifest), /workspace:|file:|link:/);
     assert.ok(manifest.dependencies['sqlite-vec']);
     assert.ok(manifest.peerDependencies['@deepseek-ai/dsh-session-query']);
+    for (const name of ['dsh-memory-index', 'dsh-memory-tool']) {
+      assert.equal(await readFile(join(packed, 'plugins', name, 'lib/workspace.js'), 'utf8'),
+        await readFile(join(root, 'packages', name, 'lib/workspace.js'), 'utf8'), 'workspace recall implementation must ship in the tarball');
+    }
     assert.ok(Object.keys(manifest.dependencies).every(name => !name.startsWith('@deepseek-ai/dsh-')));
     const digest = createHash('sha256').update(await readFile(join(output, filename))).digest('hex');
     assert.equal(await readFile(join(output, 'SHA256SUMS'), 'utf8'), `${digest}  ${filename}\n`);

@@ -31,4 +31,4 @@ jobs:
         run: |
           gh release create "$GITHUB_REF_NAME" \
             .dsh-verify/release/*.tgz .dsh-verify/release/SHA256SUMS \
-            --verify-tag --generate-notes --title "DSH Memory Plus $GITHUB_REF_NAME"
+            --verify-tag --generate-notes --title "DSH Memory Pro $GITHUB_REF_NAME"
